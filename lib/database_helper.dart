@@ -1,5 +1,4 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart' as p; // <-- El alias 'p' evita la colisión de 'context'
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ==========================================
 // LÓGICA DE RED Y MATEMÁTICAS IP
@@ -28,12 +27,27 @@ class Subnet {
   String baseIp;
   int size;
 
-  Subnet({required this.id, required this.name, required this.baseIp, required this.size});
+  Subnet({
+    required this.id,
+    required this.name,
+    required this.baseIp,
+    required this.size,
+  });
 
-  Map<String, dynamic> toMap() => {'id': id, 'name': name, 'baseIp': baseIp, 'size': size};
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'name': name,
+        'baseIp': baseIp,
+        'size': size,
+      };
 
   factory Subnet.fromMap(Map<String, dynamic> map) {
-    return Subnet(id: map['id'], name: map['name'], baseIp: map['baseIp'], size: map['size']);
+    return Subnet(
+      id: map['id'] as String,
+      name: map['name'] as String,
+      baseIp: map['baseIp'] as String,
+      size: map['size'] as int,
+    );
   }
 
   int get networkLong => NetworkUtils.ipToLong(baseIp);
@@ -52,120 +66,96 @@ class Device {
   String id, name, mac, manufacturer, location, ip, subnetId;
 
   Device({
-    required this.id, required this.name, required this.mac,
-    required this.manufacturer, required this.location,
-    required this.ip, required this.subnetId,
+    required this.id,
+    required this.name,
+    required this.mac,
+    required this.manufacturer,
+    required this.location,
+    required this.ip,
+    required this.subnetId,
   });
 
   Map<String, dynamic> toMap() => {
-    'id': id, 'name': name, 'mac': mac, 'manufacturer': manufacturer,
-    'location': location, 'ip': ip, 'subnetId': subnetId,
-  };
+        'id': id,
+        'name': name,
+        'mac': mac,
+        'manufacturer': manufacturer,
+        'location': location,
+        'ip': ip,
+        'subnetId': subnetId,
+      };
 
   factory Device.fromMap(Map<String, dynamic> map) {
     return Device(
-      id: map['id'], name: map['name'], mac: map['mac'],
-      manufacturer: map['manufacturer'], location: map['location'],
-      ip: map['ip'], subnetId: map['subnetId'],
+      id: map['id'] as String,
+      name: map['name'] as String,
+      mac: map['mac'] as String,
+      manufacturer: map['manufacturer'] as String,
+      location: map['location'] as String,
+      ip: map['ip'] as String,
+      subnetId: map['subnetId'] as String,
     );
   }
 }
 
 // ==========================================
-// CAPA DE BASE DE DATOS (SQLITE)
+// CAPA DE BASE DE DATOS (SUPABASE)
 // ==========================================
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   factory DatabaseHelper() => _instance;
   DatabaseHelper._internal();
 
-  static Database? _database;
+  // Cliente de Supabase listo para peticiones HTTP
+  final SupabaseClient _client = Supabase.instance.client;
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
-  }
-
-  Future<Database> _initDatabase() async {
-    // Aquí usamos el alias 'p' para usar el método join del paquete path
-    String dbPath = p.join(await getDatabasesPath(), 'bitacora_red.db');
-    
-      print('\n=============================================');
-      print('📂 RUTA DE LA BASE DE DATOS: $dbPath');
-      print('=============================================\n');
-
-    return await openDatabase(
-      dbPath,
-      version: 1,
-      onConfigure: (db) async {
-        await db.execute('PRAGMA foreign_keys = ON'); // Reglas de integridad activadas
-      },
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE subnets(
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            baseIp TEXT,
-            size INTEGER
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE devices(
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            mac TEXT,
-            manufacturer TEXT,
-            location TEXT,
-            ip TEXT,
-            subnetId TEXT,
-            FOREIGN KEY (subnetId) REFERENCES subnets (id) ON DELETE CASCADE
-          )
-        ''');
-      },
-    );
-  }
-
-  // --- Consultas ---
+  // --- CRUD de Subnets ---
   Future<void> insertSubnet(Subnet subnet) async {
-    final db = await database;
-    await db.insert('subnets', subnet.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await _client.from('subnets').upsert(subnet.toMap());
   }
 
   Future<List<Subnet>> getSubnets() async {
-    final db = await database;
-    final maps = await db.query('subnets');
-    return List.generate(maps.length, (i) => Subnet.fromMap(maps[i]));
+    final response = await _client.from('subnets').select();
+    final data = response as List<dynamic>;
+    return data.map((json) => Subnet.fromMap(json as Map<String, dynamic>)).toList();
   }
 
   Future<void> updateSubnet(Subnet subnet) async {
-    final db = await database;
-    await db.update('subnets', subnet.toMap(), where: 'id = ?', whereArgs: [subnet.id]);
+    await _client
+        .from('subnets')
+        .update(subnet.toMap())
+        .eq('id', subnet.id);
   }
 
   Future<void> deleteSubnet(String id) async {
-    final db = await database;
-    await db.delete('subnets', where: 'id = ?', whereArgs: [id]);
+    await _client
+        .from('subnets')
+        .delete()
+        .eq('id', id);
   }
 
+  // --- CRUD de Devices ---
   Future<void> insertDevice(Device device) async {
-    final db = await database;
-    await db.insert('devices', device.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await _client.from('devices').upsert(device.toMap());
   }
 
   Future<List<Device>> getDevices() async {
-    final db = await database;
-    final maps = await db.query('devices');
-    return List.generate(maps.length, (i) => Device.fromMap(maps[i]));
+    final response = await _client.from('devices').select();
+    final data = response as List<dynamic>;
+    return data.map((json) => Device.fromMap(json as Map<String, dynamic>)).toList();
   }
 
   Future<void> updateDevice(Device device) async {
-    final db = await database;
-    await db.update('devices', device.toMap(), where: 'id = ?', whereArgs: [device.id]);
+    await _client
+        .from('devices')
+        .update(device.toMap())
+        .eq('id', device.id);
   }
 
   Future<void> deleteDevice(String id) async {
-    final db = await database;
-    await db.delete('devices', where: 'id = ?', whereArgs: [id]);
+    await _client
+        .from('devices')
+        .delete()
+        .eq('id', id);
   }
 }

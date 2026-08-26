@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
-import 'database_helper.dart'; // <-- Enlazamos nuestra base de datos y modelos
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'database_helper.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicialización de Supabase para Web y Desktop
+  await Supabase.initialize(
+    url: 'https://kiwyqrcgfsjmvuebjmos.supabase.co',
+     anonKey: 'sb_publishable_q0clV_OzLdaMXawdBrZDNQ_os7f_OoT',          
+  );
+
   runApp(const BitacoraRedApp());
 }
 
@@ -518,7 +526,7 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
           children: [
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(labelText: 'Segmento de Red'),
-              value: selectedSubnetId,
+              initialValue: selectedSubnetId,
               icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B)),
               items: widget.subnets.map((s) {
                 return DropdownMenuItem(value: s.id, child: Text('${s.name} (${s.firstUsable} - ${s.lastUsable})'));
