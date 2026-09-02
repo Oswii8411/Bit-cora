@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/services.dart'; // <--- Necesario para el inputFormatter
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'database_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: '.env');
-
   await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+    url: 'https://axsepafjqmzwbegfeypv.supabase.co',
+    anonKey: 'sb_publishable_kcBRDshFIwoO6-afhUXNyQ_EQ-1ldtz',
   );
 
   runApp(const BitacoraRedApp());
@@ -46,12 +44,10 @@ class MainTabScreen extends StatefulWidget {
 
 class _MainTabScreenState extends State<MainTabScreen> {
   int _currentIndex = 0;
-
-  // Agregamos la tercera pantalla al arreglo
   final List<Widget> _screens = [
     const NetworksScreen(),
     const DevicesScreen(),
-    const HistoryScreen() // <--- NUEVA PANTALLA
+    const HistoryScreen()
   ];
 
   @override
@@ -130,7 +126,6 @@ class _NetworksScreenState extends State<NetworksScreen> {
                         icon: const Icon(Icons.more_vert, color: Colors.white),
                         onSelected: (value) async {
                           if (value == 'delete') {
-                            // Pasamos el nombre para el registro en el historial
                             await dbHelper.deleteNetwork(net.id, net.name);
                             _loadData();
                           }
@@ -383,8 +378,34 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
 }
 
 // ==========================================
-// APARTADO 2: DISPOSITIVOS
+// APARTADO 2: DISPOSITIVOS Y FORMATEADOR MAC
 // ==========================================
+
+// CLASE CUSTOM PARA MÁSCARA MAC
+class MacAddressFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    // Elimina todo lo que no sea HEX
+    var text = newValue.text.replaceAll(RegExp(r'[^0-9A-Fa-f]'), '').toUpperCase();
+    var buffer = StringBuffer();
+
+    for (int i = 0; i < text.length; i++) {
+      buffer.write(text[i]);
+      var nonZeroIndex = i + 1;
+      // Inserta dos puntos cada 2 caracteres (excepto al final o si sobrepasa los 12 caracteres)
+      if (nonZeroIndex % 2 == 0 && nonZeroIndex != text.length && nonZeroIndex < 12) {
+        buffer.write(':');
+      }
+    }
+
+    var string = buffer.toString();
+    return newValue.copyWith(
+        text: string,
+        selection: TextSelection.collapsed(offset: string.length) // Mueve el cursor al final
+    );
+  }
+}
+
 class DevicesScreen extends StatefulWidget {
   const DevicesScreen({super.key});
   @override
@@ -541,10 +562,27 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
       Subnet selectedSubnet = widget.subnets.firstWhere((s) => s.id == selectedSubnetId);
       if (!selectedSubnet.isIpInUsableRange(ip)) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('La IP $ip NO pertenece a ${selectedSubnet.name}'),
+          content: Text('La IP $ip NO pertenece a ${selectedSubnet.name} (${selectedSubnet.firstUsable} - ${selectedSubnet.lastUsable})'),
           backgroundColor: Colors.red.shade800,
           behavior: SnackBarBehavior.floating,
         ));
+        return;
+      }
+
+      final existingDevices = await dbHelper.getDevices();
+      bool isMacTaken = existingDevices.any((d) =>
+      d.mac.toLowerCase() == mac.toLowerCase() &&
+          (widget.device == null || d.id != widget.device!.id)
+      );
+
+      if (isMacTaken) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: La MAC $mac ya está registrada.'),
+            backgroundColor: Colors.red.shade800,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
         return;
       }
 
@@ -583,21 +621,47 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
             ),
             const SizedBox(height: 16),
             TextFormField(
-              initialValue: ip, decoration: const InputDecoration(labelText: 'IP Asignada'),
+              initialValue: ip, decoration: const InputDecoration(labelText: 'IP Asignada (Ej. 192.168.0.5)'),
               validator: (val) => val!.isEmpty ? 'Requerido' : null, onSaved: (val) => ip = val!,
             ),
             const SizedBox(height: 16),
             TextFormField(
               initialValue: name, decoration: const InputDecoration(labelText: 'Nombre'),
+              validator: (val) => val!.isEmpty ? 'Requerido' : null,
               onSaved: (val) => name = val!,
             ),
             const SizedBox(height: 16),
+
+            // SECCIÓN ACTUALIZADA DE LA MAC (FORMATEADOR APLICADO)
             TextFormField(
-              initialValue: mac, decoration: const InputDecoration(labelText: 'MAC Address'),
+              initialValue: mac,
+              decoration: const InputDecoration(labelText: 'MAC Address'),
+              inputFormatters: [
+                MacAddressFormatter(),
+                LengthLimitingTextInputFormatter(17), // Limita a 12 caracteres + 5 ':'
+              ],
+              validator: (val) {
+                if (val == null || val.isEmpty) return 'Requerido';
+                if (!RegExp(r'^([0-9A-F]{2}[:-]){5}([0-9A-F]{2})$').hasMatch(val)) {
+                  return 'Formato de MAC inválido';
+                }
+                return null;
+              },
               onSaved: (val) => mac = val!,
             ),
+
+            const SizedBox(height: 16),
+            TextFormField(
+              initialValue: manufacturer, decoration: const InputDecoration(labelText: 'Marca / Fabricante'),
+              onSaved: (val) => manufacturer = val!,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              initialValue: location, decoration: const InputDecoration(labelText: 'Ubicación'),
+              onSaved: (val) => location = val!,
+            ),
             const SizedBox(height: 32),
-            ElevatedButton(onPressed: saveDevice, child: const Text('Guardar'))
+            ElevatedButton(onPressed: saveDevice, child: const Text('Guardar Configuración'))
           ],
         ),
       ),
@@ -606,7 +670,7 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
 }
 
 // ==========================================
-// APARTADO 3: HISTORIAL DE CAMBIOS (NUEVO)
+// APARTADO 3: HISTORIAL DE CAMBIOS
 // ==========================================
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -652,7 +716,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         itemBuilder: (context, index) {
           final log = logs[index];
 
-          // Configuramos la semántica de colores e íconos basada en la acción
           Color iconColor;
           IconData iconShape;
           Color bgColor;
@@ -679,7 +742,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
               iconShape = Icons.info;
           }
 
-          // Formateo de fecha simple
           String formattedDate = '';
           if (log.createdAt != null) {
             formattedDate = '${log.createdAt!.day}/${log.createdAt!.month}/${log.createdAt!.year} - ${log.createdAt!.hour}:${log.createdAt!.minute.toString().padLeft(2, '0')}';
