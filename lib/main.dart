@@ -6,7 +6,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'https://axsepafjqmzwbegfeypv.supabase.co', // URL corregida
+    url: 'https://axsepafjqmzwbegfeypv.supabase.co',
     anonKey: 'sb_publishable_kcBRDshFIwoO6-afhUXNyQ_EQ-1ldtz',
   );
 
@@ -19,7 +19,7 @@ class BitacoraRedApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Bitacora',
+      title: 'NetControl ITSU',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         scaffoldBackgroundColor: const Color(0xFFF8F9FA),
@@ -43,7 +43,13 @@ class MainTabScreen extends StatefulWidget {
 
 class _MainTabScreenState extends State<MainTabScreen> {
   int _currentIndex = 0;
-  final List<Widget> _screens = [const NetworksScreen(), const DevicesScreen()];
+
+  // Agregamos la tercera pantalla al arreglo
+  final List<Widget> _screens = [
+    const NetworksScreen(),
+    const DevicesScreen(),
+    const HistoryScreen() // <--- NUEVA PANTALLA
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +62,7 @@ class _MainTabScreenState extends State<MainTabScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.hub_outlined), activeIcon: Icon(Icons.hub), label: 'Redes'),
           BottomNavigationBarItem(icon: Icon(Icons.devices_outlined), activeIcon: Icon(Icons.devices), label: 'Equipos'),
+          BottomNavigationBarItem(icon: Icon(Icons.history_outlined), activeIcon: Icon(Icons.history), label: 'Historial'),
         ],
       ),
     );
@@ -63,7 +70,7 @@ class _MainTabScreenState extends State<MainTabScreen> {
 }
 
 // ==========================================
-// APARTADO 1: REDES (ESTILO CLASSROOM)
+// APARTADO 1: REDES
 // ==========================================
 class NetworksScreen extends StatefulWidget {
   const NetworksScreen({super.key});
@@ -120,7 +127,8 @@ class _NetworksScreenState extends State<NetworksScreen> {
                         icon: const Icon(Icons.more_vert, color: Colors.white),
                         onSelected: (value) async {
                           if (value == 'delete') {
-                            await dbHelper.deleteNetwork(net.id);
+                            // Pasamos el nombre para el registro en el historial
+                            await dbHelper.deleteNetwork(net.id, net.name);
                             _loadData();
                           }
                         },
@@ -151,9 +159,6 @@ class _NetworksScreenState extends State<NetworksScreen> {
   }
 }
 
-// ==========================================
-// PANTALLA ANIDADA: SEGMENTOS DE LA RED
-// ==========================================
 class SegmentsScreen extends StatefulWidget {
   final NetworkGroup network;
   const SegmentsScreen({super.key, required this.network});
@@ -205,7 +210,7 @@ class _SegmentsScreenState extends State<SegmentsScreen> {
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () async {
-                      await dbHelper.deleteSubnet(subnet.id);
+                      await dbHelper.deleteSubnet(subnet.id, subnet.name);
                       _loadData();
                     },
                   ),
@@ -242,9 +247,6 @@ class _SegmentsScreenState extends State<SegmentsScreen> {
   }
 }
 
-// ==========================================
-// ASISTENTE DE RED CON VALIDACIÓN DE IP
-// ==========================================
 class NetworkWizardScreen extends StatefulWidget {
   const NetworkWizardScreen({super.key});
   @override
@@ -275,12 +277,11 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
-      // VALIDACIÓN: Evitar redes duplicadas
       final existingNetworks = await dbHelper.getNetworks();
       if (existingNetworks.any((net) => net.baseIp == baseIp)) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Error: La red $baseIp ya existe. Elige otra IP Base.'),
+            content: Text('Error: La red $baseIp ya existe.'),
             backgroundColor: Colors.red.shade800,
             behavior: SnackBarBehavior.floating,
           ));
@@ -320,13 +321,13 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
           padding: const EdgeInsets.all(24.0),
           children: [
             TextFormField(
-              decoration: const InputDecoration(labelText: 'Nombre de la Red', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Nombre de la Red (Ej. Edificio A)'),
               validator: (val) => val!.isEmpty ? 'Requerido' : null,
               onSaved: (val) => networkName = val!,
             ),
             const SizedBox(height: 16),
             TextFormField(
-              decoration: const InputDecoration(labelText: 'IP Base (Ej. 192.168.0.0)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'IP Base (Ej. 192.168.0.0)'),
               validator: (val) => val!.isEmpty ? 'Requerido' : null,
               onSaved: (val) => baseIp = val!,
             ),
@@ -335,7 +336,7 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
               children: [
                 Expanded(
                   child: TextFormField(
-                    decoration: const InputDecoration(labelText: 'Tamaño total', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Tamaño total'),
                     keyboardType: TextInputType.number, initialValue: '64',
                     onSaved: (val) => totalDevices = int.parse(val!),
                   ),
@@ -343,7 +344,7 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextFormField(
-                    decoration: const InputDecoration(labelText: 'Segmentos', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Segmentos'),
                     keyboardType: TextInputType.number, initialValue: '4',
                     onSaved: (val) => segments = int.parse(val!),
                   ),
@@ -351,7 +352,7 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            const Text('Color de la tarjeta', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Color', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 12,
@@ -368,8 +369,8 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _generateSubnets,
-              style: ElevatedButton.styleFrom(backgroundColor: selectedColor, padding: const EdgeInsets.symmetric(vertical: 16)),
-              child: const Text('Crear Red', style: TextStyle(color: Colors.white, fontSize: 16)),
+              style: ElevatedButton.styleFrom(backgroundColor: selectedColor),
+              child: const Text('Crear Red', style: TextStyle(color: Colors.white)),
             )
           ],
         ),
@@ -379,7 +380,7 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
 }
 
 // ==========================================
-// APARTADO 2: DISPOSITIVOS (AGRUPADOS Y BUSCADOR GLOBAL)
+// APARTADO 2: DISPOSITIVOS
 // ==========================================
 class DevicesScreen extends StatefulWidget {
   const DevicesScreen({super.key});
@@ -406,7 +407,6 @@ class _DevicesScreenState extends State<DevicesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Aplicamos el filtro global a todos los dispositivos
     final filteredDevices = devices.where((d) {
       final query = searchQuery.toLowerCase();
       return d.name.toLowerCase().contains(query) ||
@@ -424,7 +424,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: TextField(
               decoration: InputDecoration(
-                hintText: 'Buscar...',
+                hintText: 'Buscar a nivel global...',
                 prefixIcon: const Icon(Icons.search),
                 filled: true, fillColor: Colors.white,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
@@ -437,7 +437,6 @@ class _DevicesScreenState extends State<DevicesScreen> {
               itemCount: networks.length,
               itemBuilder: (context, netIndex) {
                 final net = networks[netIndex];
-
                 final netSubnets = subnets.where((s) => s.networkId == net.id).toList();
                 final hasMatchingDevices = filteredDevices.any((d) => netSubnets.any((s) => s.id == d.subnetId));
 
@@ -471,7 +470,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                               trailing: IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red, size: 20),
                                 onPressed: () async {
-                                  await dbHelper.deleteDevice(device.id);
+                                  await dbHelper.deleteDevice(device.id, device.name);
                                   _loadData();
                                 },
                               ),
@@ -539,7 +538,7 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
       Subnet selectedSubnet = widget.subnets.firstWhere((s) => s.id == selectedSubnetId);
       if (!selectedSubnet.isIpInUsableRange(ip)) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('La IP $ip NO pertenece a ${selectedSubnet.name} (${selectedSubnet.firstUsable} - ${selectedSubnet.lastUsable})'),
+          content: Text('La IP $ip NO pertenece a ${selectedSubnet.name}'),
           backgroundColor: Colors.red.shade800,
           behavior: SnackBarBehavior.floating,
         ));
@@ -556,7 +555,6 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
       } else {
         await dbHelper.updateDevice(newDevice);
       }
-
       if (mounted) Navigator.pop(context);
     }
   }
@@ -573,51 +571,140 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(labelText: 'Segmento de Red'),
               value: selectedSubnetId,
-              icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B)),
+              icon: const Icon(Icons.arrow_drop_down),
               items: widget.subnets.map((s) {
                 return DropdownMenuItem(value: s.id, child: Text('${s.name} (${s.firstUsable} - ${s.lastUsable})'));
               }).toList(),
               onChanged: (val) => setState(() => selectedSubnetId = val),
-              validator: (val) => val == null ? 'Seleccione un segmento' : null,
+              validator: (val) => val == null ? 'Requerido' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
-              initialValue: ip,
-              decoration: const InputDecoration(labelText: 'IP Asignada (Ej. 192.168.0.5)'),
-              validator: (val) => val!.isEmpty ? 'Requerido' : null,
-              onSaved: (val) => ip = val!,
+              initialValue: ip, decoration: const InputDecoration(labelText: 'IP Asignada'),
+              validator: (val) => val!.isEmpty ? 'Requerido' : null, onSaved: (val) => ip = val!,
             ),
             const SizedBox(height: 16),
             TextFormField(
-              initialValue: name,
-              decoration: const InputDecoration(labelText: 'Nombre del dispositivo'),
+              initialValue: name, decoration: const InputDecoration(labelText: 'Nombre'),
               onSaved: (val) => name = val!,
             ),
             const SizedBox(height: 16),
             TextFormField(
-              initialValue: mac,
-              decoration: const InputDecoration(labelText: 'MAC Address'),
+              initialValue: mac, decoration: const InputDecoration(labelText: 'MAC Address'),
               onSaved: (val) => mac = val!,
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              initialValue: manufacturer,
-              decoration: const InputDecoration(labelText: 'Marca / Fabricante'),
-              onSaved: (val) => manufacturer = val!,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              initialValue: location,
-              decoration: const InputDecoration(labelText: 'Ubicación'),
-              onSaved: (val) => location = val!,
-            ),
             const SizedBox(height: 32),
-            ElevatedButton(
-                onPressed: saveDevice,
-                child: const Text('Guardar Configuración')
-            )
+            ElevatedButton(onPressed: saveDevice, child: const Text('Guardar'))
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// APARTADO 3: HISTORIAL DE CAMBIOS (NUEVO)
+// ==========================================
+class HistoryScreen extends StatefulWidget {
+  const HistoryScreen({super.key});
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  final dbHelper = DatabaseHelper();
+  List<HistoryLog> logs = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLogs();
+  }
+
+  Future<void> _loadLogs() async {
+    final data = await dbHelper.getHistoryLogs();
+    setState(() {
+      logs = data;
+      isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Registro de Auditoría'),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadLogs)
+        ],
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : logs.isEmpty
+          ? const Center(child: Text('El historial está vacío.'))
+          : ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: logs.length,
+        itemBuilder: (context, index) {
+          final log = logs[index];
+
+          // Configuramos la semántica de colores e íconos basada en la acción
+          Color iconColor;
+          IconData iconShape;
+          Color bgColor;
+
+          switch (log.actionType) {
+            case 'CREAR':
+              iconColor = Colors.green.shade700;
+              bgColor = Colors.green.shade50;
+              iconShape = Icons.add_circle;
+              break;
+            case 'EDITAR':
+              iconColor = Colors.amber.shade700;
+              bgColor = Colors.amber.shade50;
+              iconShape = Icons.edit_note;
+              break;
+            case 'ELIMINAR':
+              iconColor = Colors.red.shade700;
+              bgColor = Colors.red.shade50;
+              iconShape = Icons.delete_forever;
+              break;
+            default:
+              iconColor = Colors.blueGrey;
+              bgColor = Colors.blueGrey.shade50;
+              iconShape = Icons.info;
+          }
+
+          // Formateo de fecha simple
+          String formattedDate = '';
+          if (log.createdAt != null) {
+            formattedDate = '${log.createdAt!.day}/${log.createdAt!.month}/${log.createdAt!.year} - ${log.createdAt!.hour}:${log.createdAt!.minute.toString().padLeft(2, '0')}';
+          }
+
+          return Card(
+            elevation: 0,
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: iconColor.withOpacity(0.3)),
+            ),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: bgColor,
+                child: Icon(iconShape, color: iconColor),
+              ),
+              title: Text(log.description, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: Text(
+                    '$formattedDate  •  Módulo: ${log.entityType}',
+                    style: const TextStyle(fontSize: 12, color: Colors.blueGrey)
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
