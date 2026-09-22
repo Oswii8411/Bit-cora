@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'views/pantalla_principal.dart';
+import 'views/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +31,10 @@ class BitacoraRedApp extends StatelessWidget {
           titleTextStyle: TextStyle(color: Color(0xFF0F172A), fontSize: 24, fontWeight: FontWeight.bold),
         ),
       ),
-      home: const MainTabScreen(),
+      // Validación de sesión para mostrar Login o Pantalla Principal
+      home: Supabase.instance.client.auth.currentUser != null
+          ? const MainTabScreen()
+          : const LoginScreen(),
     );
   }
 }
