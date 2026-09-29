@@ -25,14 +25,12 @@ class _MainTabScreenState extends State<MainTabScreen> {
   final List<Widget> _screens = [
     const NetworksScreen(),
     const DevicesScreen(),
-    const HistoryScreen() // Asumo que estas pantallas ya las tienes creadas
+    const HistoryScreen()
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // --- EL CAMBIO ESTÁ AQUÍ ---
-      // IndexedStack mantiene todas las pantallas en memoria pero solo muestra la del índice activo.
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,

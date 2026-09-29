@@ -98,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Icon(Icons.router_outlined, size: 60, color: colorPrimario),
                     ),
                     const SizedBox(height: 16),
-                    const Text('NetControl ITSU', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: colorTextoOscuro)),
+                    const Text('Bitácora de Red', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: colorTextoOscuro)),
                     const SizedBox(height: 8),
                     const Text('Control y administración de red', style: TextStyle(color: colorTextoOscuro, fontSize: 14)),
                   ],

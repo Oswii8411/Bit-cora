@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'views/pantalla_principal.dart';
 import 'views/login_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
 
   await Supabase.initialize(
-    url: 'https://axsepafjqmzwbegfeypv.supabase.co',
-    anonKey: 'sb_publishable_kcBRDshFIwoO6-afhUXNyQ_EQ-1ldtz',
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
-  runApp(const BitacoraRedApp());
+  runApp(const BitacoraRedApp()); //
 }
 
 class BitacoraRedApp extends StatelessWidget {
@@ -20,7 +22,7 @@ class BitacoraRedApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'NetControl ITSU',
+      title: 'Bitácora de Red',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         scaffoldBackgroundColor: const Color(0xFFF8F9FA),

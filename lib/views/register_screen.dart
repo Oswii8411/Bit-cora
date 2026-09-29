@@ -95,7 +95,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 Text('Crear cuenta', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: colorTextoOscuro)),
                 SizedBox(height: 8),
-                Text('Registra tus datos para solicitar acceso a NetControl ITSU', style: TextStyle(color: colorTextoOscuro, fontSize: 14)),
+                Text('Registra tus datos para solicitar acceso a Bitácora de Red', style: TextStyle(color: colorTextoOscuro, fontSize: 14)),
               ],
             ),
           ),
