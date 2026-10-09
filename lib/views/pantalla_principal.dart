@@ -1,3 +1,5 @@
+import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/widgets/motion.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
 import 'package:bitacora_red/models/network_group.dart';
 import 'package:bitacora_red/views/asistente_red.dart';
@@ -38,7 +40,6 @@ class _MainTabScreenState extends State<MainTabScreen> {
       // ---------------------------
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        selectedItemColor: const Color(0xFF6D28D9), // Color púrpura
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.hub_outlined), activeIcon: Icon(Icons.hub), label: 'Redes'),
@@ -73,7 +74,7 @@ class _NetworksScreenState extends State<NetworksScreen> {
         // Aquí agregamos el botón de cerrar sesión
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            icon: const Icon(Icons.logout, color: AppColors.error),
             tooltip: 'Cerrar sesión',
             onPressed: () async {
               // 1. Cierra la sesión en Supabase
@@ -91,13 +92,15 @@ class _NetworksScreenState extends State<NetworksScreen> {
         ],
       ),
       body: networks.isEmpty
-          ? const Center(child: Text('Sin redes configuradas...'))
+          ? const Center(child: Text('Sin redes configuradas...', style: TextStyle(color: AppColors.inkMuted)))
           : ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         itemCount: networks.length,
         itemBuilder: (context, index) {
           final net = networks[index];
-          return GestureDetector(
+          return FadeSlideIn(
+            index: index,
+            child: Pressable(
             onTap: () async {
               await Navigator.push(
                 context,
@@ -111,7 +114,7 @@ class _NetworksScreenState extends State<NetworksScreen> {
               margin: const EdgeInsets.only(bottom: 16),
               height: 140,
               decoration: BoxDecoration(
-                color: Color(net.colorValue),
+                color: accessibleColor(Color(net.colorValue)),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -168,14 +171,15 @@ class _NetworksScreenState extends State<NetworksScreen> {
                   const Spacer(),
                   Text(
                     'IP Inicial: ${net.baseIp}',
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.92),
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
+            ),
             ),
           );
         },
@@ -190,9 +194,8 @@ class _NetworksScreenState extends State<NetworksScreen> {
           );
           _loadData();
         },
-        backgroundColor: const Color(0xFF1D4ED8),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Agregar red', style: TextStyle(color: Colors.white)),
+        icon: const Icon(Icons.add),
+        label: const Text('Agregar red'),
       ),
     );
   }

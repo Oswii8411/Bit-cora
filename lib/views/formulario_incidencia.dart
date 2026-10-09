@@ -1,3 +1,4 @@
+import 'package:bitacora_red/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
@@ -28,9 +29,9 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
 
   List<String> _opcionesEquipos = ['Cargando...'];
 
-  final Color colorFondo = const Color(0xFFFFF0FF);
-  final Color colorPrimarioOscuro = const Color(0xFF4B1C71);
-  final Color colorPrimario = const Color(0xFF7F4CA5);
+  final Color colorFondo = AppColors.background;
+  final Color colorPrimarioOscuro = AppColors.primary;
+  final Color colorPrimario = AppColors.primary;
 
   @override
   void initState() {

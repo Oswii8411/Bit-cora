@@ -1,3 +1,5 @@
+import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/widgets/motion.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
 import 'package:bitacora_red/models/device.dart';
 import 'package:bitacora_red/models/network_group.dart';
@@ -49,14 +51,13 @@ class _DevicesScreenState extends State<DevicesScreen> {
               decoration: InputDecoration(
                 hintText: 'Buscar a nivel global...',
                 prefixIcon: const Icon(Icons.search),
-                filled: true, fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
               ),
               onChanged: (val) => setState(() => searchQuery = val),
             ),
           ),
           Expanded(
             child: ListView.builder(
+              padding: const EdgeInsets.only(bottom: 96),
               itemCount: networks.length,
               itemBuilder: (context, netIndex) {
                 final net = networks[netIndex];
@@ -65,14 +66,18 @@ class _DevicesScreenState extends State<DevicesScreen> {
 
                 if (!hasMatchingDevices && filteredDevices.isNotEmpty) return const SizedBox.shrink();
 
-                return Card(
+                return FadeSlideIn(
+                  index: netIndex,
+                  child: Card(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE2E8F0))),
+                  clipBehavior: Clip.antiAlias,
                   child: ExpansionTile(
+                    shape: const Border(),
+                    collapsedShape: const Border(),
                     initiallyExpanded: searchQuery.isNotEmpty,
-                    leading: Icon(Icons.hub, color: Color(net.colorValue)),
+                    leading: Icon(Icons.hub, color: accessibleColor(Color(net.colorValue))),
                     title: Text(net.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    subtitle: Text(net.baseIp),
+                    subtitle: Text(net.baseIp, style: const TextStyle(color: AppColors.inkMuted)),
                     children: netSubnets.map((subnet) {
 
                       final subDevices = filteredDevices.where((d) => d.subnetId == subnet.id).toList();
@@ -82,16 +87,16 @@ class _DevicesScreenState extends State<DevicesScreen> {
                         padding: const EdgeInsets.only(left: 16.0),
                         child: ExpansionTile(
                           initiallyExpanded: searchQuery.isNotEmpty,
-                          leading: const Icon(Icons.router, color: Colors.blueGrey),
+                          leading: const Icon(Icons.router, color: AppColors.inkMuted),
                           title: Text(subnet.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                           children: subDevices.map((device) {
                             return ListTile(
                               contentPadding: const EdgeInsets.only(left: 40, right: 16),
-                              leading: const Icon(Icons.computer, color: Color(0xFF1D4ED8)),
+                              leading: const Icon(Icons.computer, color: AppColors.primary),
                               title: Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: Text('IP: ${device.ip} | MAC: ${device.mac}'),
+                              subtitle: Text('IP: ${device.ip} | MAC: ${device.mac}', style: const TextStyle(color: AppColors.inkMuted)),
                               trailing: IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                icon: const Icon(Icons.delete, color: AppColors.error, size: 22),
                                 onPressed: () async {
                                   await dbHelper.deleteDevice(device.id, device.name);
                                   _loadData();
@@ -107,6 +112,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                       );
                     }).toList(),
                   ),
+                  ),
                 );
               },
             ),
@@ -118,9 +124,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
           await Navigator.push(context, MaterialPageRoute(builder: (context) => DeviceFormScreen(subnets: subnets)));
           _loadData();
         },
-        backgroundColor: const Color(0xFF1D4ED8),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Agregar equipo', style: TextStyle(color: Colors.white)),
+        icon: const Icon(Icons.add),
+        label: const Text('Agregar equipo'),
       ),
     );
   }

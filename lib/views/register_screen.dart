@@ -1,3 +1,4 @@
+import 'package:bitacora_red/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pantalla_principal.dart';
@@ -63,7 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(mensajeError),
-              backgroundColor: Colors.redAccent,
+              backgroundColor: AppColors.error,
               behavior: SnackBarBehavior.floating,
             )
         );
@@ -76,8 +77,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     const colorFondo = Color(0xFFF3E8FF);
-    const colorPrimario = Color(0xFF6D28D9);
-    const colorTextoOscuro = Color(0xFF1E1B4B);
+    const colorPrimario = AppColors.primary;
+    const colorTextoOscuro = AppColors.ink;
 
     return Scaffold(
       backgroundColor: colorFondo,
@@ -182,7 +183,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('¿Ya tienes una cuenta? ', style: TextStyle(color: Colors.grey)),
+                          const Text('¿Ya tienes una cuenta? ', style: TextStyle(color: AppColors.inkMuted)),
                           GestureDetector(
                             onTap: () => Navigator.of(context).pop(),
                             child: const Text('Iniciar sesión', style: TextStyle(color: colorPrimario, fontWeight: FontWeight.bold)),
@@ -208,14 +209,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colorTextoOscuro)),
-          Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          Text(subtitle, style: const TextStyle(color: AppColors.inkMuted, fontSize: 14)),
         ],
       ),
     );
   }
 
   Widget _buildInput(TextEditingController controller, String label, IconData icon, {bool isPassword = false, bool isEmail = false, String? Function(String?)? validator}) {
-    const colorPrimario = Color(0xFF6D28D9);
+    const colorPrimario = AppColors.primary;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
@@ -225,11 +226,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         validator: validator,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.grey),
+          labelStyle: const TextStyle(color: AppColors.inkMuted),
           prefixIcon: Icon(icon, color: colorPrimario),
           suffixIcon: isPassword
               ? IconButton(
-            icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+            icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: AppColors.inkMuted),
             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
           )
               : null,
@@ -237,8 +238,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           fillColor: const Color(0xFFF7FAFC),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
           focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: colorPrimario, width: 1.5)),
-          errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.redAccent, width: 1.5)),
-          focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.redAccent, width: 2.0)),
+          errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: AppColors.error, width: 1.5)),
+          focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: AppColors.error, width: 2.0)),
         ),
       ),
     );

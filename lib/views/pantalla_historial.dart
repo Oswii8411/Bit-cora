@@ -1,3 +1,5 @@
+import 'package:bitacora_red/widgets/motion.dart';
+import 'package:bitacora_red/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../controllers/database_helper.dart';
@@ -19,10 +21,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   bool isLoading = true;
 
   // Colores de la paleta
-  final Color colorFondo = const Color(0xFFFFF0FF);
-  final Color colorPrimarioOscuro = const Color(0xFF4B1C71);
-  final Color colorPrimario = const Color(0xFF7F4CA5);
-  final Color colorAcento = const Color(0xFFB57EDC);
+  final Color colorFondo = AppColors.background;
+  final Color colorPrimarioOscuro = AppColors.ink;
+  final Color colorPrimario = AppColors.primary;
+  final Color colorAcento = AppColors.accent;
 
   @override
   void initState() {
@@ -52,19 +54,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Scaffold(
         backgroundColor: colorFondo,
         appBar: AppBar(
-          title: const Text('Historial y Bitácora', style: TextStyle(color: Colors.white)),
-          backgroundColor: colorPrimarioOscuro,
-          elevation: 0,
+          title: const Text('Historial y Bitácora'),
           actions: [
             IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white),
+                icon: const Icon(Icons.refresh),
                 onPressed: _cargarDatos
             ),
           ],
           bottom: const TabBar(
-            indicatorColor: Colors.white,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white54,
+            indicatorColor: AppColors.primary,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: AppColors.inkMuted,
             tabs: [
               Tab(icon: Icon(Icons.list_alt), text: 'Incidencias'),
               Tab(icon: Icon(Icons.security), text: 'Auditoría'),
@@ -80,9 +80,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ],
         ),
         floatingActionButton: FloatingActionButton.extended(
-          backgroundColor: colorPrimario,
-          icon: const Icon(Icons.add, color: Colors.white),
-          label: const Text('Reportar', style: TextStyle(color: Colors.white)),
+          icon: const Icon(Icons.add),
+          label: const Text('Reportar'),
           onPressed: () async {
             // Abre el formulario en modo "Creación" (incidenciaActual es nulo por defecto)
             final recargar = await Navigator.push(
@@ -101,7 +100,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // --- WIDGET PARA LA PESTAÑA DE INCIDENCIAS ---
   Widget _buildPestanaIncidencias() {
     if (incidencias.isEmpty) {
-      return const Center(child: Text('No hay incidencias registradas.'));
+      return const Center(child: Text('No hay incidencias registradas.', style: TextStyle(color: AppColors.inkMuted)));
     }
 
     return ListView.builder(
@@ -114,12 +113,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
             : 'Sin fecha';
 
         // Color dinámico según el estado y prioridad
-        Color colorEstado = Colors.orange;
-        if (item.estado == 'Resuelto') colorEstado = Colors.green;
-        if (item.estado == 'Alta' || item.prioridad == 'Alta') colorEstado = Colors.red;
+        Color colorEstado = const Color(0xFFB45309);
+        if (item.estado == 'Resuelto') colorEstado = const Color(0xFF15803D);
+        if (item.estado == 'Alta' || item.prioridad == 'Alta') colorEstado = AppColors.error;
 
         // InkWell hace que toda la tarjeta sea cliqueable
-        return InkWell(
+        return FadeSlideIn(
+          index: index,
+          child: Pressable(
           onTap: () async {
             // Abre el formulario en modo "Edición" pasando el objeto actual
             final recargar = await Navigator.push(
@@ -133,9 +134,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             }
           },
           child: Card(
-            elevation: 2,
             margin: const EdgeInsets.only(bottom: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -147,7 +146,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       Expanded(
                         child: Text(
                           item.dispositivoNombre,
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colorPrimarioOscuro),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.ink),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -160,7 +159,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text('Falla: ${item.descripcion}', style: const TextStyle(fontSize: 15)),
-                  Text('Acción: ${item.accionRealizada}', style: const TextStyle(fontSize: 15, color: Colors.grey)),
+                  Text('Acción: ${item.accionRealizada}', style: const TextStyle(fontSize: 15, color: AppColors.inkMuted)),
                   const Divider(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -172,12 +171,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           Text(item.responsable, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ],
                       ),
-                      Text(fecha, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(fecha, style: const TextStyle(fontSize: 12, color: AppColors.inkMuted)),
                     ],
                   ),
                 ],
               ),
             ),
+          ),
           ),
         );
       },
@@ -187,7 +187,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // --- WIDGET PARA LA PESTAÑA DE AUDITORÍA ---
   Widget _buildPestanaAuditoria() {
     if (logs.isEmpty) {
-      return const Center(child: Text('El historial de auditoría está vacío.'));
+      return const Center(child: Text('El historial de auditoría está vacío.', style: TextStyle(color: AppColors.inkMuted)));
     }
 
     return ListView.builder(
@@ -227,7 +227,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           formattedDate = DateFormat('dd/MM/yyyy - HH:mm').format(log.createdAt!);
         }
 
-        return Card(
+        return FadeSlideIn(
+          index: index,
+          child: Card(
           elevation: 0,
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(
@@ -247,9 +249,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               padding: const EdgeInsets.only(top: 4.0),
               child: Text(
                 '$formattedDate  •  Módulo: ${log.entityType}',
-                style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+                style: const TextStyle(fontSize: 12, color: AppColors.inkMuted),
               ),
             ),
+          ),
           ),
         );
       },

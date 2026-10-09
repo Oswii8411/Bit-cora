@@ -1,3 +1,4 @@
+import 'package:bitacora_red/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pantalla_principal.dart';
@@ -50,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(mensajeError),
-              backgroundColor: Colors.redAccent,
+              backgroundColor: AppColors.error,
               behavior: SnackBarBehavior.floating, // Hace que el mensaje se vea más moderno (flotante)
             )
         );
@@ -60,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Error inesperado de conexión.'),
-              backgroundColor: Colors.redAccent,
+              backgroundColor: AppColors.error,
               behavior: SnackBarBehavior.floating,
             )
         );
@@ -74,8 +75,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     // Paleta Púrpura Moderna
     const colorFondo = Color(0xFFF3E8FF); // Púrpura muy claro
-    const colorPrimario = Color(0xFF6D28D9); // Púrpura profundo y vibrante
-    const colorTextoOscuro = Color(0xFF1E1B4B);
+    const colorPrimario = AppColors.primary; // Púrpura profundo y vibrante
+    const colorTextoOscuro = AppColors.ink;
 
     return Scaffold(
       backgroundColor: colorFondo,
@@ -124,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         const Text('Bienvenido', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colorTextoOscuro)),
                         const SizedBox(height: 8),
-                        const Text('Ingresa con tus credenciales para continuar', style: TextStyle(color: Colors.grey)),
+                        const Text('Ingresa con tus credenciales para continuar', style: TextStyle(color: AppColors.inkMuted)),
                         const SizedBox(height: 32),
 
                         _buildTextField(
@@ -185,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('¿Aún no tienes cuenta? ', style: TextStyle(color: Colors.grey)),
+                            const Text('¿Aún no tienes cuenta? ', style: TextStyle(color: AppColors.inkMuted)),
                             GestureDetector(
                               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const RegisterScreen())),
                               child: const Text('Crear cuenta', style: TextStyle(color: colorPrimario, fontWeight: FontWeight.bold)),
@@ -220,11 +221,11 @@ class _LoginScreenState extends State<LoginScreen> {
       validator: validator, // Recibe la regla de validación
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.grey),
+        labelStyle: const TextStyle(color: AppColors.inkMuted),
         prefixIcon: Icon(icon, color: colorPrimario),
         suffixIcon: isPassword
             ? IconButton(
-          icon: Icon(obscureText ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+          icon: Icon(obscureText ? Icons.visibility_off : Icons.visibility, color: AppColors.inkMuted),
           onPressed: onTogglePassword,
         )
             : null,
@@ -233,8 +234,8 @@ class _LoginScreenState extends State<LoginScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: colorPrimario, width: 1.5)),
         // Configuración para resaltar en rojo cuando hay error
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.redAccent, width: 1.5)),
-        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.redAccent, width: 2.0)),
+        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: AppColors.error, width: 1.5)),
+        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: AppColors.error, width: 2.0)),
       ),
     );
   }

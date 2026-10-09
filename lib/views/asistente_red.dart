@@ -1,3 +1,4 @@
+import 'package:bitacora_red/widgets/motion.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
 import 'package:bitacora_red/controllers/network_utils.dart';
 import 'package:bitacora_red/models/network_group.dart';
@@ -20,7 +21,7 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
 
   final List<Color> availableColors = [
     const Color(0xFF1D4ED8), const Color(0xFF047857), const Color(0xFFB91C1C),
-    const Color(0xFFD97706), const Color(0xFF4338CA), const Color(0xFFBE185D)
+    const Color(0xFFB45309), const Color(0xFF4338CA), const Color(0xFFBE185D)
   ];
   late Color selectedColor;
 
@@ -116,9 +117,18 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
               children: availableColors.map((color) {
                 return GestureDetector(
                   onTap: () => setState(() => selectedColor = color),
-                  child: CircleAvatar(
-                    backgroundColor: color,
-                    child: selectedColor == color ? const Icon(Icons.check, color: Colors.white) : null,
+                  child: AnimatedScale(
+                    scale: selectedColor == color ? 1.12 : 1.0,
+                    duration: const Duration(milliseconds: 160),
+                    curve: kEaseOut,
+                    child: CircleAvatar(
+                      backgroundColor: color,
+                      child: AnimatedOpacity(
+                        opacity: selectedColor == color ? 1 : 0,
+                        duration: const Duration(milliseconds: 160),
+                        child: const Icon(Icons.check, color: Colors.white),
+                      ),
+                    ),
                   ),
                 );
               }).toList(),

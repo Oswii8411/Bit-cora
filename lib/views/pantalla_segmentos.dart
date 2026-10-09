@@ -1,3 +1,5 @@
+import 'package:bitacora_red/widgets/motion.dart';
+import 'package:bitacora_red/app_theme.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
 import 'package:bitacora_red/models/network_group.dart';
 import 'package:bitacora_red/models/subnet.dart';
@@ -31,7 +33,7 @@ class _SegmentsScreenState extends State<SegmentsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.network.name),
-        backgroundColor: Color(widget.network.colorValue),
+        backgroundColor: accessibleColor(Color(widget.network.colorValue)),
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -40,20 +42,17 @@ class _SegmentsScreenState extends State<SegmentsScreen> {
         itemCount: subnets.length,
         itemBuilder: (context, index) {
           final subnet = subnets[index];
-          return Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
+          return FadeSlideIn(
+            index: index,
+            child: Card(
             margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
               leading: CircleAvatar(
                 backgroundColor: Color(widget.network.colorValue)
-                    .withValues(alpha: 0.2),
+                    .withValues(alpha: 0.15),
                 child: Icon(
                   Icons.router,
-                  color: Color(widget.network.colorValue),
+                  color: accessibleColor(Color(widget.network.colorValue)),
                 ),
               ),
               title: Text(
@@ -62,16 +61,17 @@ class _SegmentsScreenState extends State<SegmentsScreen> {
               ),
               subtitle: Text(
                 'Rango: ${subnet.firstUsable} - ${subnet.lastUsable}',
+                style: const TextStyle(color: AppColors.inkMuted),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
+                    icon: const Icon(Icons.edit, color: AppColors.primary),
                     onPressed: () => _editSubnetName(context, subnet),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
+                    icon: const Icon(Icons.delete, color: AppColors.error),
                     onPressed: () async {
                       await dbHelper.deleteSubnet(subnet.id, subnet.name);
                       _loadData();
@@ -79,6 +79,7 @@ class _SegmentsScreenState extends State<SegmentsScreen> {
                   ),
                 ],
               ),
+            ),
             ),
           );
         },
