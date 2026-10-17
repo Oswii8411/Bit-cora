@@ -1,4 +1,5 @@
 import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/controllers/validators.dart';
 import 'package:bitacora_red/widgets/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -142,7 +143,7 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
                 TextFormField(
                   controller: _nuevoDispositivoController,
                   decoration: _buildDecoration('Nombre del nuevo dispositivo', Icons.add),
-                  validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                  validator: (v) => Validators.text(v, campo: 'El nombre', min: 2, max: 60),
                 ),
               ],
               const SizedBox(height: 16),
@@ -164,14 +165,14 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
                 controller: _descripcionController,
                 maxLines: 2,
                 decoration: _buildDecoration('Descripción del problema', Icons.description),
-                validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                validator: (v) => Validators.text(v, campo: 'La descripción', min: 5, max: 500),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _accionController,
                 maxLines: 2,
                 decoration: _buildDecoration('Acción realizada o seguimiento', Icons.build),
-                validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                validator: (v) => Validators.text(v, campo: 'La acción', min: 3, max: 500),
               ),
 
               // Historial de intervenciones visual (Solo en modo edición)

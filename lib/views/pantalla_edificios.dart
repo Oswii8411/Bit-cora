@@ -1,4 +1,5 @@
 import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/controllers/validators.dart';
 import 'package:bitacora_red/widgets/responsive.dart';
 import 'package:bitacora_red/controllers/app_session.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
@@ -210,12 +211,17 @@ class _BuildingsScreenState extends State<BuildingsScreen> {
                 controller: name,
                 autofocus: true,
                 decoration: const InputDecoration(labelText: 'Nombre'),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
+                validator: (v) =>
+                    Validators.text(v, campo: 'El nombre', min: 2, max: 60) ??
+                    (networks.any((n) => n.id != net.id && Validators.duplicated(v!, [n.name]))
+                        ? 'Ya existe un edificio con ese nombre'
+                        : null),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: ubicacion,
                 decoration: const InputDecoration(labelText: 'Ubicación (opcional)'),
+                validator: (v) => Validators.optional(v, campo: 'La ubicación', max: 80),
               ),
               const SizedBox(height: 8),
               Align(

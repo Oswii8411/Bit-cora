@@ -1,4 +1,5 @@
 import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/controllers/validators.dart';
 import 'package:bitacora_red/widgets/responsive.dart';
 import 'package:bitacora_red/controllers/app_session.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
@@ -420,7 +421,11 @@ class _VlanFormScreenState extends State<VlanFormScreen> {
             TextFormField(
               controller: name,
               decoration: const InputDecoration(labelText: 'Nombre (Ej. Alumnos)'),
-              validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
+              validator: (v) =>
+                  Validators.text(v, campo: 'El nombre', min: 2, max: 60) ??
+                  (widget.allVlans.any((o) => o.networkId == networkId && o.id != widget.existing?.id && Validators.duplicated(v!, [o.name]))
+                      ? 'Ya existe una VLAN con ese nombre en este edificio'
+                      : null),
             ),
             const SizedBox(height: 14),
             Row(

@@ -1,4 +1,5 @@
 import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/controllers/validators.dart';
 import 'package:bitacora_red/widgets/responsive.dart';
 import 'package:bitacora_red/widgets/motion.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
@@ -33,42 +34,76 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
     selectedColor = availableColors[0];
   }
 
-  Future<void> _generateSubnets() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+  void _error(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(text),
+      backgroundColor: AppColors.error,
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
 
+  Future<void> _generateSubnets() async {
+    if (!_formKey.currentState!.validate()) return;
+    _formKey.currentState!.save();
+
+    final name = networkName.trim();
+    final ip = baseIp.trim();
+    final segmentSize = totalDevices ~/ segments;
+    final net = NetworkUtils.ipToLong(ip);
+
+    if (segmentSize < 4) {
+      _error('Con $segments segmentos cada uno tendría menos de 4 direcciones. Usa menos segmentos o un tamaño total mayor.');
+      return;
+    }
+    // La dirección de red debe ser la primera del bloque total.
+    if (net % totalDevices != 0) {
+      _error('La IP base debe ser la primera dirección de un bloque de $totalDevices. Prueba con ${NetworkUtils.longToIp(net - net % totalDevices)}.');
+      return;
+    }
+
+    try {
       final existingNetworks = await dbHelper.getNetworks();
-      if (existingNetworks.any((net) => net.baseIp == baseIp)) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Error: La red $baseIp ya existe.'),
-            backgroundColor: Colors.red.shade800,
-            behavior: SnackBarBehavior.floating,
-          ));
-        }
+      if (Validators.duplicated(name, existingNetworks.map((n) => n.name))) {
+        _error('Ya existe un edificio llamado "$name".');
         return;
       }
+      if (existingNetworks.any((n) => n.baseIp == ip)) {
+        _error('La red $ip ya existe.');
+        return;
+      }
+      // El rango nuevo no debe traslaparse con ninguna VLAN existente.
+      final subnets = await dbHelper.getSubnets();
+      for (final sub in subnets) {
+        final start = sub.networkLong;
+        final end = start + sub.size - 1;
+        if (net <= end && net + totalDevices - 1 >= start) {
+          _error('Ese rango se traslapa con la VLAN "${sub.name}" (${sub.baseIp}).');
+          return;
+        }
+      }
 
-      String netId = DateTime.now().millisecondsSinceEpoch.toString();
-      NetworkGroup newNetwork = NetworkGroup(
-          id: netId, name: networkName, baseIp: baseIp, colorValue: selectedColor.toARGB32()
+      final netId = DateTime.now().millisecondsSinceEpoch.toString();
+      await dbHelper.insertNetwork(
+        NetworkGroup(id: netId, name: name, baseIp: ip, colorValue: selectedColor.toARGB32()),
       );
-      await dbHelper.insertNetwork(newNetwork);
 
-      int segmentSize = totalDevices ~/ segments;
-      int currentIpLong = NetworkUtils.ipToLong(baseIp);
-
-      for (int i = 0; i < segments; i++) {
-        Subnet newSubnet = Subnet(
-          id: DateTime.now().millisecondsSinceEpoch.toString() + i.toString(),
-          networkId: netId, name: 'Segmento ${i + 1}',
-          baseIp: NetworkUtils.longToIp(currentIpLong), size: segmentSize,
+      var current = net;
+      for (var i = 0; i < segments; i++) {
+        final newSubnet = Subnet(
+          id: '${DateTime.now().millisecondsSinceEpoch}$i',
+          networkId: netId,
+          name: 'Segmento ${i + 1}',
+          baseIp: NetworkUtils.longToIp(current),
+          size: segmentSize,
           vlanNumber: (i + 1) * 10,
         )..fillDerivedFields();
         await dbHelper.insertSubnet(newSubnet);
-        currentIpLong += segmentSize;
+        current += segmentSize;
       }
-      if(mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      _error('No se pudo crear el edificio: $e');
     }
   }
 
@@ -83,14 +118,15 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
           children: [
             TextFormField(
               decoration: const InputDecoration(labelText: 'Nombre del edificio (Ej. Edificio A)'),
-              validator: (val) => val!.isEmpty ? 'Requerido' : null,
-              onSaved: (val) => networkName = val!,
+              validator: (val) => Validators.text(val, campo: 'El nombre', min: 2, max: 60),
+              onSaved: (val) => networkName = val ?? '',
             ),
             const SizedBox(height: 16),
             TextFormField(
               decoration: const InputDecoration(labelText: 'IP Base (Ej. 192.168.0.0)'),
-              validator: (val) => val!.isEmpty ? 'Requerido' : null,
-              onSaved: (val) => baseIp = val!,
+              keyboardType: TextInputType.number,
+              validator: (val) => Validators.ip(val, campo: 'La IP base'),
+              onSaved: (val) => baseIp = val ?? '',
             ),
             const SizedBox(height: 16),
             Row(
@@ -99,7 +135,10 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
                   child: TextFormField(
                     decoration: const InputDecoration(labelText: 'Tamaño total'),
                     keyboardType: TextInputType.number, initialValue: '64',
-                    onSaved: (val) => totalDevices = int.parse(val!),
+                    validator: (val) =>
+                        Validators.intRange(val, 8, 65536, 'El tamaño') ??
+                        (Validators.isPowerOfTwo(int.parse(val!.trim())) ? null : 'Usa una potencia de 2 (8, 16, 32, 64...)'),
+                    onSaved: (val) => totalDevices = int.tryParse(val?.trim() ?? '') ?? 64,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -107,7 +146,10 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
                   child: TextFormField(
                     decoration: const InputDecoration(labelText: 'Segmentos'),
                     keyboardType: TextInputType.number, initialValue: '4',
-                    onSaved: (val) => segments = int.parse(val!),
+                    validator: (val) =>
+                        Validators.intRange(val, 1, 64, 'Los segmentos') ??
+                        (Validators.isPowerOfTwo(int.parse(val!.trim())) ? null : 'Usa una potencia de 2 (1, 2, 4, 8...)'),
+                    onSaved: (val) => segments = int.tryParse(val?.trim() ?? '') ?? 4,
                   ),
                 ),
               ],

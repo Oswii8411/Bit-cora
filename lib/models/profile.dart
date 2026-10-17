@@ -3,6 +3,7 @@ class Profile {
   final String id;
   String email;
   String rol; // 'admin' | 'tecnico'
+  String rolSolicitado; // rol que pidió al registrarse; lo decide el admin al aprobar
   String estado; // 'pendiente' | 'activo' | 'rechazado'
   String nombre, apellido, departamento, cargo;
   String tema; // 'claro' | 'oscuro'
@@ -13,6 +14,7 @@ class Profile {
     required this.id,
     required this.email,
     this.rol = 'tecnico',
+    this.rolSolicitado = 'tecnico',
     this.estado = 'pendiente',
     this.nombre = '',
     this.apellido = '',
@@ -34,10 +36,14 @@ class Profile {
 
   String get roleLabel => isAdmin ? 'Administrador' : 'Técnico';
 
+  bool get requestedAdmin => rolSolicitado == 'admin';
+  String get requestedRoleLabel => requestedAdmin ? 'Administrador' : 'Técnico';
+
   factory Profile.fromMap(Map<String, dynamic> map) => Profile(
         id: map['id'] as String,
         email: map['email'] as String? ?? '',
         rol: map['rol'] as String? ?? 'tecnico',
+        rolSolicitado: map['rol_solicitado'] as String? ?? 'tecnico',
         estado: map['estado'] as String? ?? 'pendiente',
         nombre: map['nombre'] as String? ?? '',
         apellido: map['apellido'] as String? ?? '',

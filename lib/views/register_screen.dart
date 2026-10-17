@@ -3,6 +3,7 @@ import 'package:bitacora_red/widgets/terminos_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import '../controllers/auth_controller.dart';
+import '../controllers/validators.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -26,6 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  String _rolSolicitado = 'tecnico';
   bool _acceptedTerms = false;
   bool _termsError = false;
 
@@ -63,6 +65,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         apellido: _apellidoController.text.trim(),
         departamento: _departamentoController.text.trim(),
         cargo: _cargoController.text.trim(),
+        rolSolicitado: _rolSolicitado,
       );
       if (!mounted) return;
       await showDialog<void>(
@@ -120,28 +123,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 22),
                           _buildSectionTitle('Datos personales', 'Información básica de identificación', colorTextoOscuro),
                           _buildInput(_nombreController, 'Nombre', Icons.person_outline,
-                              validator: (v) => v!.trim().isEmpty ? 'Requerido' : null),
+                              validator: (v) => Validators.personName(v, 'El nombre')),
                           _buildInput(_apellidoController, 'Apellido', Icons.person_outline,
-                              validator: (v) => v!.trim().isEmpty ? 'Requerido' : null),
+                              validator: (v) => Validators.personName(v, 'El apellido')),
                           _buildInput(_emailController, 'Correo electrónico', Icons.email_outlined, isEmail: true,
-                              validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Requerido';
-                            if (!v.contains('@')) return 'Correo no válido';
-                            return null;
-                          }),
+                              validator: Validators.email),
                           const SizedBox(height: 24),
                           _buildSectionTitle('Información laboral', 'Área en la que desempeñas tus actividades', colorTextoOscuro),
                           _buildInput(_departamentoController, 'Departamento', Icons.business_outlined,
-                              validator: (v) => v!.trim().isEmpty ? 'Requerido' : null),
+                              validator: (v) => Validators.text(v, campo: 'El departamento', min: 2, max: 60)),
                           _buildInput(_cargoController, 'Cargo o puesto', Icons.work_outline,
-                              validator: (v) => v!.trim().isEmpty ? 'Requerido' : null),
+                              validator: (v) => Validators.text(v, campo: 'El cargo', min: 2, max: 60)),
+                          const SizedBox(height: 24),
+                          _buildSectionTitle('Rol que solicitas', 'El administrador confirmará el rol al aprobar tu cuenta', colorTextoOscuro),
+                          Row(
+                            children: [
+                              Expanded(child: _roleOption('tecnico', 'Técnico', 'Consulta y opera la red', Icons.engineering_outlined)),
+                              const SizedBox(width: 10),
+                              Expanded(child: _roleOption('admin', 'Administrador', 'Gestiona todo el sistema', Icons.admin_panel_settings_outlined)),
+                            ],
+                          ),
                           const SizedBox(height: 24),
                           _buildSectionTitle('Seguridad', 'Crea una contraseña para tu cuenta', colorTextoOscuro),
                           _buildInput(_passwordController, 'Contraseña', Icons.lock_outline, isPassword: true,
-                              validator: (v) {
-                            if (v == null || v.length < 6) return 'Mínimo 6 caracteres';
-                            return null;
-                          }),
+                              validator: Validators.password),
                           _buildInput(_confirmPasswordController, 'Confirmar contraseña', Icons.lock_outline,
                               isPassword: true, validator: (v) {
                             if (v == null || v.isEmpty) return 'Requerido';
@@ -223,6 +228,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Tarjeta seleccionable para elegir uno de los dos roles.
+  Widget _roleOption(String value, String title, String subtitle, IconData icon) {
+    final selected = _rolSolicitado == value;
+    final color = selected ? AppColors.primary : AppColors.inkMuted;
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppTheme.radius),
+      onTap: () => setState(() => _rolSolicitado = value),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary.withValues(alpha: 0.10) : AppColors.surface,
+          border: Border.all(color: selected ? AppColors.primary : AppColors.border, width: selected ? 1.8 : 1),
+          borderRadius: BorderRadius.circular(AppTheme.radius),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 22, color: color),
+                const Spacer(),
+                Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, size: 20, color: color),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.ink)),
+            const SizedBox(height: 2),
+            Text(subtitle, style: TextStyle(fontSize: 12, color: AppColors.inkMuted)),
+          ],
         ),
       ),
     );

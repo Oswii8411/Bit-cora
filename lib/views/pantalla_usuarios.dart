@@ -189,7 +189,10 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 _pill(estadoLabel, color),
-                _pill(u.roleLabel, u.isAdmin ? AppColors.palette4 : AppColors.inkMuted),
+                if (u.isPending)
+                  _pill('Solicita: ${u.requestedRoleLabel}', u.requestedAdmin ? const Color(0xFFB45309) : AppColors.inkMuted)
+                else
+                  _pill(u.roleLabel, u.isAdmin ? AppColors.palette4 : AppColors.inkMuted),
                 if (u.departamento.isNotEmpty) Text(u.departamento, style: TextStyle(fontSize: 12, color: AppColors.inkMuted)),
                 if (u.cargo.isNotEmpty) Text('· ${u.cargo}', style: TextStyle(fontSize: 12, color: AppColors.inkMuted)),
                 if (fecha.isNotEmpty) Text('· desde $fecha', style: TextStyle(fontSize: 12, color: AppColors.inkMuted)),
@@ -210,7 +213,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () => _run(() => db.setUserEstado(u, 'activo'), 'Cuenta aprobada'),
+                        onPressed: () => _approve(u),
                         style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(42)),
                         child: const Text('Aprobar'),
                       ),
@@ -235,9 +238,54 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
             )),
       );
 
+  /// ¿[u] es el único administrador activo?
+  bool _lastAdmin(Profile u) => u.isAdmin && u.isActive && users.where((x) => x.isAdmin && x.isActive).length <= 1;
+
+  /// Aprueba una cuenta pendiente; el admin confirma (o cambia) el rol.
+  Future<void> _approve(Profile u) async {
+    var rol = u.rolSolicitado;
+    final chosen = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Aprobar cuenta'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${u.fullName} solicitó el rol ${u.requestedRoleLabel}. Elige el rol que tendrá:',
+                  style: TextStyle(color: AppColors.inkMuted)),
+              const SizedBox(height: 8),
+              RadioGroup<String>(
+                groupValue: rol,
+                onChanged: (v) => setLocal(() => rol = v ?? rol),
+                child: const Column(
+                  children: [
+                    RadioListTile<String>(value: 'tecnico', title: Text('Técnico'), subtitle: Text('Consulta y opera la red'), contentPadding: EdgeInsets.zero),
+                    RadioListTile<String>(value: 'admin', title: Text('Administrador'), subtitle: Text('Gestiona todo el sistema'), contentPadding: EdgeInsets.zero),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+            TextButton(onPressed: () => Navigator.pop(context, rol), child: const Text('Aprobar')),
+          ],
+        ),
+      ),
+    );
+    if (chosen == null) return;
+    await _run(() => db.setUserEstado(u, 'activo', rol: chosen), 'Cuenta aprobada como ${chosen == 'admin' ? 'Administrador' : 'Técnico'}');
+  }
+
   Future<void> _onMenu(String value, Profile u) async {
     switch (value) {
       case 'rol':
+        if (u.isAdmin && _lastAdmin(u)) {
+          showMsg(context, 'No puedes quitarle el rol al único administrador activo.', error: true);
+          return;
+        }
         final nuevo = u.isAdmin ? 'tecnico' : 'admin';
         final ok = await confirmar(
           context,
@@ -247,6 +295,10 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
         );
         if (ok) await _run(() => db.setUserRole(u, nuevo), 'Rol actualizado');
       case 'rechazar':
+        if (u.isAdmin && _lastAdmin(u)) {
+          showMsg(context, 'No puedes desactivar al único administrador activo.', error: true);
+          return;
+        }
         final ok = await confirmar(
           context,
           titulo: 'Desactivar cuenta',

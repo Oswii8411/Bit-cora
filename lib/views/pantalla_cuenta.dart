@@ -1,4 +1,5 @@
 import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/controllers/validators.dart';
 import 'package:bitacora_red/widgets/responsive.dart';
 import 'package:bitacora_red/controllers/app_session.dart';
 import 'package:bitacora_red/controllers/auth_controller.dart';
@@ -75,23 +76,25 @@ class _PerfilScreenState extends State<PerfilScreen> {
             TextFormField(
               controller: nombre,
               decoration: const InputDecoration(labelText: 'Nombre', prefixIcon: Icon(Icons.person_outline)),
-              validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
+              validator: (v) => Validators.personName(v, 'El nombre'),
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: apellido,
               decoration: const InputDecoration(labelText: 'Apellido', prefixIcon: Icon(Icons.person_outline)),
-              validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
+              validator: (v) => Validators.personName(v, 'El apellido'),
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: departamento,
               decoration: const InputDecoration(labelText: 'Departamento', prefixIcon: Icon(Icons.business_outlined)),
+              validator: (v) => Validators.optional(v, campo: 'El departamento', max: 60),
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: cargo,
               decoration: const InputDecoration(labelText: 'Cargo o puesto', prefixIcon: Icon(Icons.work_outline)),
+              validator: (v) => Validators.optional(v, campo: 'El cargo', max: 60),
             ),
             const SizedBox(height: 28),
             ElevatedButton(
@@ -172,9 +175,9 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(labelText: 'Correo nuevo', prefixIcon: Icon(Icons.email_outlined)),
               validator: (v) {
-                final t = v?.trim() ?? '';
-                if (!t.contains('@')) return 'Ingresa un correo válido';
-                if (t == p.email) return 'Es el mismo correo';
+                final invalid = Validators.email(v);
+                if (invalid != null) return invalid;
+                if (v!.trim().toLowerCase() == p.email.toLowerCase()) return 'Es el mismo correo que ya tienes';
                 return null;
               },
             ),
@@ -208,7 +211,7 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
                       onPressed: () => setState(() => obscure = !obscure),
                     ),
                   ),
-                  validator: (v) => (v == null || v.length < 6) ? 'Mínimo 6 caracteres' : null,
+                  validator: Validators.password,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

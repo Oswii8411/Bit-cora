@@ -1,4 +1,5 @@
 import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/controllers/validators.dart';
 import 'package:bitacora_red/widgets/responsive.dart';
 import 'package:bitacora_red/controllers/app_session.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
@@ -6,7 +7,6 @@ import 'package:bitacora_red/models/estados.dart';
 import 'package:bitacora_red/models/net_port.dart';
 import 'package:bitacora_red/models/net_switch.dart';
 import 'package:bitacora_red/models/network_group.dart';
-import 'package:bitacora_red/controllers/network_utils.dart';
 import 'package:bitacora_red/views/pantalla_puertos.dart';
 import 'package:bitacora_red/widgets/estado_widgets.dart';
 import 'package:bitacora_red/widgets/motion.dart';
@@ -254,6 +254,9 @@ class _SwitchesTabState extends State<SwitchesTab> {
 
   Future<void> _showForm({NetSwitch? existing}) async {
     final formKey = GlobalKey<FormState>();
+    // Todos los switches, para comprobar nombres e IP repetidos.
+    final allSwitches = await dbHelper.getAllSwitches();
+    if (!mounted) return;
     final name = TextEditingController(text: existing?.name ?? '');
     final model = TextEditingController(text: existing?.model ?? '');
     final ip = TextEditingController(text: existing?.ip ?? '');
@@ -285,25 +288,34 @@ class _SwitchesTabState extends State<SwitchesTab> {
                   TextFormField(
                     controller: name,
                     decoration: const InputDecoration(labelText: 'Nombre'),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Requerido' : null,
+                    validator: (v) =>
+                        Validators.text(v, campo: 'El nombre', min: 2, max: 60) ??
+                        (allSwitches.any((x) => x.id != existing?.id && x.networkId == networkId && Validators.duplicated(v!, [x.name]))
+                            ? 'Ya existe un switch con ese nombre en este edificio'
+                            : null),
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(controller: model, decoration: const InputDecoration(labelText: 'Modelo / Marca')),
+                  TextFormField(
+                    controller: model,
+                    decoration: const InputDecoration(labelText: 'Modelo / Marca'),
+                    validator: (v) => Validators.optional(v, campo: 'El modelo', max: 60),
+                  ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: ip,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: 'IP de administración'),
-                    validator: (v) {
-                      final t = v?.trim() ?? '';
-                      if (t.isEmpty) return null;
-                      return NetworkUtils.isValidIp(t) ? null : 'IP no válida';
-                    },
+                    validator: (v) =>
+                        Validators.ip(v, required: false, campo: 'La IP') ??
+                        ((v?.trim().isNotEmpty ?? false) && allSwitches.any((x) => x.id != existing?.id && x.ip == v!.trim())
+                            ? 'Otro switch ya usa esa IP'
+                            : null),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: location,
                     decoration: const InputDecoration(labelText: 'Ubicación (Ej. Rack 2, Piso 1)'),
+                    validator: (v) => Validators.optional(v, campo: 'La ubicación', max: 80),
                   ),
                   if (existing == null) ...[
                     const SizedBox(height: 12),
@@ -311,11 +323,7 @@ class _SwitchesTabState extends State<SwitchesTab> {
                       controller: ports,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(labelText: 'Número de puertos'),
-                      validator: (v) {
-                        final n = int.tryParse(v ?? '');
-                        if (n == null || n < 1 || n > 96) return 'Entre 1 y 96';
-                        return null;
-                      },
+                      validator: (v) => Validators.intRange(v, 1, 96, 'El número de puertos'),
                     ),
                   ],
                 ],

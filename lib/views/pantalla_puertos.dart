@@ -1,4 +1,5 @@
 import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/controllers/validators.dart';
 import 'package:bitacora_red/widgets/responsive.dart';
 import 'package:bitacora_red/controllers/app_session.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
@@ -316,6 +317,7 @@ class _PortsScreenState extends State<PortsScreen> {
                   TextFormField(
                     controller: departamento,
                     decoration: const InputDecoration(labelText: 'Departamento'),
+                    validator: (v) => Validators.optional(v, campo: 'El departamento', max: 60),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
@@ -329,6 +331,7 @@ class _PortsScreenState extends State<PortsScreen> {
                     controller: observaciones,
                     maxLines: 2,
                     decoration: const InputDecoration(labelText: 'Observaciones'),
+                    validator: (v) => Validators.optional(v, campo: 'Las observaciones', max: 200),
                   ),
                 ],
               ),

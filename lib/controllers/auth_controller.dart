@@ -68,6 +68,7 @@ class AuthController {
     required String apellido,
     required String departamento,
     required String cargo,
+    String rolSolicitado = 'tecnico',
   }) async {
     await _auth.signUp(
       email: email,
@@ -77,6 +78,8 @@ class AuthController {
         'apellido': apellido,
         'departamento': departamento,
         'cargo': cargo,
+        // Solo es una solicitud: el administrador decide el rol al aprobar la cuenta.
+        'rol_solicitado': rolSolicitado == 'admin' ? 'admin' : 'tecnico',
       },
     );
     // Si el proyecto no exige confirmar correo, signUp abre sesión: la cerramos

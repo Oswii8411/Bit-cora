@@ -1,8 +1,11 @@
 class NetworkUtils {
+  /// Convierte "a.b.c.d" a número. Si el texto no es una IP devuelve 0 en lugar
+  /// de lanzar una excepción (valida con [isValidIp] antes de usar el resultado).
   static int ipToLong(String ip) {
-    final parts = ip.split('.');
+    final parts = ip.trim().split('.');
     if (parts.length != 4) return 0;
-    return (int.parse(parts[0]) << 24) + (int.parse(parts[1]) << 16) + (int.parse(parts[2]) << 8) + int.parse(parts[3]);
+    final n = parts.map((p) => int.tryParse(p) ?? 0).toList();
+    return (n[0] << 24) + (n[1] << 16) + (n[2] << 8) + n[3];
   }
   static String longToIp(int longVal) {
     return '${(longVal >> 24) & 255}.${(longVal >> 16) & 255}.${(longVal >> 8) & 255}.${longVal & 255}';

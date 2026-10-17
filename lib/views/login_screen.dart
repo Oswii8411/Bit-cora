@@ -2,6 +2,7 @@ import 'package:bitacora_red/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import '../controllers/auth_controller.dart';
+import '../controllers/validators.dart';
 import 'pantalla_principal.dart';
 import 'register_screen.dart';
 
@@ -111,8 +112,9 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
     if (email == null || email.isEmpty) return;
-    if (!email.contains('@')) {
-      _snack('Ingresa un correo válido', error: true);
+    final invalid = Validators.email(email);
+    if (invalid != null) {
+      _snack(invalid, error: true);
       return;
     }
     try {
@@ -157,11 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _emailController,
                       label: 'Correo electrónico',
                       icon: Icons.email_outlined,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) return 'El correo es obligatorio';
-                        if (!value.contains('@')) return 'Ingresa un correo válido';
-                        return null;
-                      },
+                      validator: Validators.email,
                     ),
                     const SizedBox(height: 14),
                     _buildTextField(

@@ -1,4 +1,5 @@
 import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/controllers/validators.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import '../controllers/auth_controller.dart';
@@ -80,7 +81,7 @@ class _RestablecerPasswordScreenState extends State<RestablecerPasswordScreen> {
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
-                  validator: (v) => (v == null || v.length < 6) ? 'Mínimo 6 caracteres' : null,
+                  validator: Validators.password,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

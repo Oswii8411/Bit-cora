@@ -1,4 +1,6 @@
+import 'package:bitacora_red/app_theme.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
+import 'package:bitacora_red/controllers/validators.dart';
 import 'package:bitacora_red/widgets/responsive.dart';
 import 'package:bitacora_red/controllers/mac_address_formatter.dart';
 import 'package:bitacora_red/models/device.dart';
@@ -48,6 +50,14 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
         return;
       }
 
+      // No se puede usar la dirección de red, el ruteador ni el broadcast.
+      if (ip == selectedSubnet.gateway || ip == selectedSubnet.broadcast || ip == selectedSubnet.baseIp) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('La IP $ip está reservada en ${selectedSubnet.name} (red, ruteador o broadcast).'),
+          backgroundColor: AppColors.error,
+        ));
+        return;
+      }
       if (selectedSubnet.isIpExcluded(ip)) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('La IP $ip está en el rango excluido de ${selectedSubnet.name} (${selectedSubnet.excluded})'),
@@ -62,6 +72,17 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
       d.mac.toLowerCase() == mac.toLowerCase() &&
           (widget.device == null || d.id != widget.device!.id)
       );
+
+      final isIpTaken = existingDevices.any((d) => d.ip == ip && (widget.device == null || d.id != widget.device!.id));
+      if (isIpTaken) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error: la IP $ip ya está asignada a otro equipo.'),
+            backgroundColor: AppColors.error,
+          ));
+        }
+        return;
+      }
 
       if (isMacTaken) {
         if (mounted) {
@@ -110,13 +131,15 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
             const SizedBox(height: 16),
             TextFormField(
               initialValue: ip, decoration: const InputDecoration(labelText: 'IP Asignada (Ej. 192.168.0.5)'),
-              validator: (val) => val!.isEmpty ? 'Requerido' : null, onSaved: (val) => ip = val!,
+              keyboardType: TextInputType.number,
+              validator: (val) => Validators.ip(val),
+              onSaved: (val) => ip = val!.trim(),
             ),
             const SizedBox(height: 16),
             TextFormField(
               initialValue: name, decoration: const InputDecoration(labelText: 'Nombre'),
-              validator: (val) => val!.isEmpty ? 'Requerido' : null,
-              onSaved: (val) => name = val!,
+              validator: (val) => Validators.text(val, campo: 'El nombre', min: 2, max: 60),
+              onSaved: (val) => name = val!.trim(),
             ),
             const SizedBox(height: 16),
 
@@ -141,12 +164,14 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
             const SizedBox(height: 16),
             TextFormField(
               initialValue: manufacturer, decoration: const InputDecoration(labelText: 'Marca / Fabricante'),
-              onSaved: (val) => manufacturer = val!,
+              validator: (val) => Validators.optional(val, campo: 'La marca', max: 60),
+              onSaved: (val) => manufacturer = val!.trim(),
             ),
             const SizedBox(height: 16),
             TextFormField(
               initialValue: location, decoration: const InputDecoration(labelText: 'Ubicación'),
-              onSaved: (val) => location = val!,
+              validator: (val) => Validators.optional(val, campo: 'La ubicación', max: 80),
+              onSaved: (val) => location = val!.trim(),
             ),
             const SizedBox(height: 32),
             ElevatedButton(onPressed: saveDevice, child: const Text('Guardar Configuración'))

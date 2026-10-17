@@ -106,10 +106,12 @@ class DatabaseHelper {
   }
 
   /// Aprobar, rechazar o reactivar una cuenta (solo administrador).
-  Future<void> setUserEstado(Profile target, String estado) async {
-    await _client.from('profiles').update({'estado': estado}).eq('id', target.id);
+  /// Con [rol] se aprueba la cuenta asignando ese rol (admin | tecnico).
+  Future<void> setUserEstado(Profile target, String estado, {String? rol}) async {
+    await _client.from('profiles').update({'estado': estado, 'rol': ?rol}).eq('id', target.id);
     final verbo = estado == 'activo' ? 'aprobó' : (estado == 'rechazado' ? 'rechazó' : 'marcó como pendiente');
-    await _logAction('EDITAR', 'USUARIO', 'Se $verbo la cuenta de ${target.fullName} (${target.email})', entityId: target.id);
+    final comoRol = rol == null ? '' : ' como ${rol == 'admin' ? 'Administrador' : 'Técnico'}';
+    await _logAction('EDITAR', 'USUARIO', 'Se $verbo la cuenta de ${target.fullName} (${target.email})$comoRol', entityId: target.id);
   }
 
   Future<void> setUserRole(Profile target, String rol) async {
