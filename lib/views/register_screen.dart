@@ -1,7 +1,8 @@
 import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/widgets/terminos_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'pantalla_principal.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
+import '../controllers/auth_controller.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -11,7 +12,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>(); // Llave para validar el formulario completo
+  final _formKey = GlobalKey<FormState>();
 
   final _nombreController = TextEditingController();
   final _apellidoController = TextEditingController();
@@ -21,54 +22,75 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  String _selectedRole = 'tecnico';
+  final AuthController _authController = AuthController();
+
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _acceptedTerms = false;
+  bool _termsError = false;
 
-  final supabase = Supabase.instance.client;
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _apellidoController.dispose();
+    _emailController.dispose();
+    _departamentoController.dispose();
+    _cargoController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  void _snack(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(text),
+      backgroundColor: AppColors.error,
+    ));
+  }
 
   Future<void> _signUp() async {
-    // Si la validación falla (algún campo vacío o incorrecto), se detiene aquí
-    if (!_formKey.currentState!.validate()) return;
+    final valid = _formKey.currentState!.validate();
+    setState(() => _termsError = !_acceptedTerms);
+    if (!valid || !_acceptedTerms) return;
 
     setState(() => _isLoading = true);
     try {
-      final res = await supabase.auth.signUp(
+      await _authController.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
-        data: {
-          'nombre': _nombreController.text.trim(),
-          'apellido': _apellidoController.text.trim(),
-          'departamento': _departamentoController.text.trim(),
-          'cargo': _cargoController.text.trim(),
-          'rol': _selectedRole,
-        },
+        nombre: _nombreController.text.trim(),
+        apellido: _apellidoController.text.trim(),
+        departamento: _departamentoController.text.trim(),
+        cargo: _cargoController.text.trim(),
       );
-
-      if (res.user != null && mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainTabScreen()),
-              (Route<dynamic> route) => false,
-        );
-      }
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          icon: const Icon(Icons.hourglass_top_rounded, size: 40, color: AppColors.palette4),
+          title: const Text('Solicitud enviada'),
+          content: const Text(
+            'Tu cuenta quedó pendiente de aprobación. Cuando un administrador la acepte podrás iniciar sesión.',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendido')),
+          ],
+        ),
+      );
+      if (mounted) Navigator.pop(context);
     } on AuthException catch (error) {
       String mensajeError = 'Error al registrar la cuenta.';
-
-      if (error.message.contains('User already registered')) {
+      if (error.message.contains('already registered')) {
         mensajeError = 'Este correo ya está registrado en el sistema.';
       } else if (error.message.contains('Password should be at least')) {
         mensajeError = 'La contraseña es demasiado débil.';
       }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(mensajeError),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-            )
-        );
-      }
+      _snack(mensajeError);
+    } catch (_) {
+      _snack('No se pudo completar el registro. Revisa tu conexión.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -76,128 +98,132 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const colorFondo = Color(0xFFF3E8FF);
-    const colorPrimario = AppColors.primary;
-    const colorTextoOscuro = AppColors.ink;
+    final colorPrimario = AppColors.primary;
+    final colorTextoOscuro = AppColors.ink;
 
     return Scaffold(
-      backgroundColor: colorFondo,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: colorTextoOscuro),
-      ),
-      body: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Crear cuenta', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: colorTextoOscuro)),
-                SizedBox(height: 8),
-                Text('Registra tus datos para solicitar acceso a Bitácora de Red', style: TextStyle(color: colorTextoOscuro, fontSize: 14)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -5))],
-              ),
-              child: SingleChildScrollView(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionTitle('Datos personales', 'Información básica de identificación', colorTextoOscuro),
-                      _buildInput(_nombreController, 'Nombre', Icons.person_outline, validator: (v) => v!.isEmpty ? 'Requerido' : null),
-                      _buildInput(_apellidoController, 'Apellido', Icons.person_outline, validator: (v) => v!.isEmpty ? 'Requerido' : null),
-                      _buildInput(_emailController, 'Correo electrónico', Icons.email_outlined, isEmail: true, validator: (v) {
-                        if (v == null || v.isEmpty) return 'Requerido';
-                        if (!v.contains('@')) return 'Correo no válido';
-                        return null;
-                      }),
-
-                      const SizedBox(height: 24),
-                      _buildSectionTitle('Información laboral', 'Área en la que desempeñas tus actividades', colorTextoOscuro),
-                      _buildInput(_departamentoController, 'Departamento', Icons.business_outlined, validator: (v) => v!.isEmpty ? 'Requerido' : null),
-                      _buildInput(_cargoController, 'Cargo o puesto', Icons.work_outline, validator: (v) => v!.isEmpty ? 'Requerido' : null),
-
-                      const SizedBox(height: 24),
-                      _buildSectionTitle('Seguridad y acceso', 'Crea una contraseña y selecciona tu rol', colorTextoOscuro),
-                      _buildInput(_passwordController, 'Contraseña', Icons.lock_outline, isPassword: true, validator: (v) {
-                        if (v == null || v.length < 6) return 'Mínimo 6 caracteres';
-                        return null;
-                      }),
-                      _buildInput(_confirmPasswordController, 'Confirmar contraseña', Icons.lock_outline, isPassword: true, validator: (v) {
-                        if (v == null || v.isEmpty) return 'Requerido';
-                        if (v != _passwordController.text) return 'Las contraseñas no coinciden';
-                        return null;
-                      }),
-
-                      const SizedBox(height: 16),
-                      const Text('Rol solicitado', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      const SizedBox(height: 8),
-                      RadioListTile(
-                        title: const Text('Técnico de red'),
-                        value: 'tecnico',
-                        groupValue: _selectedRole,
-                        activeColor: colorPrimario,
-                        contentPadding: EdgeInsets.zero,
-                        onChanged: (val) => setState(() => _selectedRole = val.toString()),
-                      ),
-                      RadioListTile(
-                        title: const Text('Administrador'),
-                        value: 'admin',
-                        groupValue: _selectedRole,
-                        activeColor: colorPrimario,
-                        contentPadding: EdgeInsets.zero,
-                        onChanged: (val) => setState(() => _selectedRole = val.toString()),
-                      ),
-
-                      const SizedBox(height: 32),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 55,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colorPrimario,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                            elevation: 0,
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Solicitar acceso')),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Un administrador revisará tu solicitud antes de que puedas entrar.',
+                        style: TextStyle(color: AppColors.inkMuted, fontSize: 14.5)),
+                    const SizedBox(height: 22),
+                          _buildSectionTitle('Datos personales', 'Información básica de identificación', colorTextoOscuro),
+                          _buildInput(_nombreController, 'Nombre', Icons.person_outline,
+                              validator: (v) => v!.trim().isEmpty ? 'Requerido' : null),
+                          _buildInput(_apellidoController, 'Apellido', Icons.person_outline,
+                              validator: (v) => v!.trim().isEmpty ? 'Requerido' : null),
+                          _buildInput(_emailController, 'Correo electrónico', Icons.email_outlined, isEmail: true,
+                              validator: (v) {
+                            if (v == null || v.trim().isEmpty) return 'Requerido';
+                            if (!v.contains('@')) return 'Correo no válido';
+                            return null;
+                          }),
+                          const SizedBox(height: 24),
+                          _buildSectionTitle('Información laboral', 'Área en la que desempeñas tus actividades', colorTextoOscuro),
+                          _buildInput(_departamentoController, 'Departamento', Icons.business_outlined,
+                              validator: (v) => v!.trim().isEmpty ? 'Requerido' : null),
+                          _buildInput(_cargoController, 'Cargo o puesto', Icons.work_outline,
+                              validator: (v) => v!.trim().isEmpty ? 'Requerido' : null),
+                          const SizedBox(height: 24),
+                          _buildSectionTitle('Seguridad', 'Crea una contraseña para tu cuenta', colorTextoOscuro),
+                          _buildInput(_passwordController, 'Contraseña', Icons.lock_outline, isPassword: true,
+                              validator: (v) {
+                            if (v == null || v.length < 6) return 'Mínimo 6 caracteres';
+                            return null;
+                          }),
+                          _buildInput(_confirmPasswordController, 'Confirmar contraseña', Icons.lock_outline,
+                              isPassword: true, validator: (v) {
+                            if (v == null || v.isEmpty) return 'Requerido';
+                            if (v != _passwordController.text) return 'Las contraseñas no coinciden';
+                            return null;
+                          }),
+                          const SizedBox(height: 8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Checkbox(
+                                value: _acceptedTerms,
+                                activeColor: colorPrimario,
+                                isError: _termsError,
+                                onChanged: (v) => setState(() {
+                                  _acceptedTerms = v ?? false;
+                                  _termsError = false;
+                                }),
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: Wrap(
+                                    children: [
+                                      Text('Acepto los ', style: TextStyle(color: AppColors.ink)),
+                                      GestureDetector(
+                                        onTap: () => showTerminosDialog(context),
+                                        child: Text('términos y condiciones',
+                                            style: TextStyle(
+                                                color: colorPrimario,
+                                                fontWeight: FontWeight.w700,
+                                                decoration: TextDecoration.underline)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          onPressed: _isLoading ? null : _signUp,
-                          child: _isLoading
-                              ? const CircularProgressIndicator(color: Colors.white)
-                              : const Text('Crear cuenta', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('¿Ya tienes una cuenta? ', style: TextStyle(color: AppColors.inkMuted)),
-                          GestureDetector(
-                            onTap: () => Navigator.of(context).pop(),
-                            child: const Text('Iniciar sesión', style: TextStyle(color: colorPrimario, fontWeight: FontWeight.bold)),
+                          if (_termsError)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12, bottom: 4),
+                              child: Text('Debes aceptar los términos para continuar',
+                                  style: TextStyle(color: AppColors.error, fontSize: 12)),
+                            ),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 55,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: colorPrimario,
+                                foregroundColor: AppColors.onPrimary,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                elevation: 0,
+                              ),
+                              onPressed: _isLoading ? null : _signUp,
+                              child: _isLoading
+                                  ? CircularProgressIndicator(color: AppColors.onPrimary)
+                                  : const Text('Enviar solicitud',
+                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 40),
-                    ],
-                  ),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('¿Ya tienes una cuenta? ', style: TextStyle(color: AppColors.inkMuted)),
+                              GestureDetector(
+                                onTap: () => Navigator.of(context).pop(),
+                                child: Text('Iniciar sesión',
+                                    style: TextStyle(color: colorPrimario, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 40),
+                  ],
                 ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -209,14 +235,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colorTextoOscuro)),
-          Text(subtitle, style: const TextStyle(color: AppColors.inkMuted, fontSize: 14)),
+          Text(subtitle, style: TextStyle(color: AppColors.inkMuted, fontSize: 14)),
         ],
       ),
     );
   }
 
-  Widget _buildInput(TextEditingController controller, String label, IconData icon, {bool isPassword = false, bool isEmail = false, String? Function(String?)? validator}) {
-    const colorPrimario = AppColors.primary;
+  Widget _buildInput(TextEditingController controller, String label, IconData icon,
+      {bool isPassword = false, bool isEmail = false, String? Function(String?)? validator}) {
+    final colorPrimario = AppColors.primary;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
@@ -226,20 +253,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
         validator: validator,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: AppColors.inkMuted),
+          labelStyle: TextStyle(color: AppColors.inkMuted),
           prefixIcon: Icon(icon, color: colorPrimario),
           suffixIcon: isPassword
               ? IconButton(
-            icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: AppColors.inkMuted),
-            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-          )
+                  icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: AppColors.inkMuted),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                )
               : null,
           filled: true,
-          fillColor: const Color(0xFFF7FAFC),
+          fillColor: AppColors.background,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: colorPrimario, width: 1.5)),
-          errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: AppColors.error, width: 1.5)),
-          focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: AppColors.error, width: 2.0)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: colorPrimario, width: 1.5)),
+          errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: AppColors.error, width: 1.5)),
+          focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: AppColors.error, width: 2.0)),
         ),
       ),
     );

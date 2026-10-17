@@ -1,9 +1,10 @@
 import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/widgets/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../models/incidencia.dart';
-import '../models/device.dart';
+import '../controllers/app_session.dart';
 import '../controllers/database_helper.dart';
 
 class FormularioIncidencia extends StatefulWidget {
@@ -28,10 +29,6 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
   bool _isLoading = false;
 
   List<String> _opcionesEquipos = ['Cargando...'];
-
-  final Color colorFondo = AppColors.background;
-  final Color colorPrimarioOscuro = AppColors.primary;
-  final Color colorPrimario = AppColors.primary;
 
   @override
   void initState() {
@@ -68,7 +65,7 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
     if (_dispositivoSeleccionado == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona un dispositivo'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Selecciona un dispositivo'), backgroundColor: AppColors.error));
       return;
     }
 
@@ -76,7 +73,7 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
 
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      final nombreResponsable = user?.userMetadata?['nombre'] ?? user?.email ?? 'Técnico';
+      final nombreResponsable = AppSession.profile?.fullName ?? user?.email ?? 'Técnico';
 
       final nombreDispositivo = _mostrarCampoNuevoEquipo ? _nuevoDispositivoController.text.trim() : _dispositivoSeleccionado!;
 
@@ -109,7 +106,7 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -120,14 +117,9 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
     bool esEdicion = widget.incidenciaActual != null;
 
     return Scaffold(
-      backgroundColor: colorFondo,
-      appBar: AppBar(
-        title: Text(esEdicion ? 'Actualizar Incidencia' : 'Nueva Incidencia', style: const TextStyle(color: Colors.white)),
-        backgroundColor: colorPrimarioOscuro,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+      appBar: AppBar(title: Text(esEdicion ? 'Actualizar incidencia' : 'Nueva incidencia')),
+      body: Centered(child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
         child: Form(
           key: _formKey,
           child: Column(
@@ -135,7 +127,7 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
             children: [
               // Selector de Dispositivo
               DropdownButtonFormField<String>(
-                value: _dispositivoSeleccionado,
+                initialValue: _dispositivoSeleccionado,
                 decoration: _buildDecoration('Dispositivo afectado', Icons.devices),
                 items: _opcionesEquipos.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
                 onChanged: esEdicion ? null : (val) { // Si edita, no se puede cambiar el dispositivo
@@ -155,14 +147,14 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
               ],
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _prioridadSeleccionada,
+                initialValue: _prioridadSeleccionada,
                 decoration: _buildDecoration('Prioridad', Icons.flag),
                 items: ['Baja', 'Media', 'Alta'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                 onChanged: (val) => setState(() => _prioridadSeleccionada = val!),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _estadoSeleccionado,
+                initialValue: _estadoSeleccionado,
                 decoration: _buildDecoration('Estado actual', Icons.info_outline),
                 items: ['Pendiente', 'En revisión', 'Resuelto'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                 onChanged: (val) => setState(() => _estadoSeleccionado = val!),
@@ -185,43 +177,38 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
               // Historial de intervenciones visual (Solo en modo edición)
               if (esEdicion && widget.incidenciaActual!.historialCambios.isNotEmpty) ...[
                 const SizedBox(height: 24),
-                const Text('Historial de Intervenciones:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('HISTORIAL DE INTERVENCIONES', style: AppText.overline()),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(12),
                   width: double.infinity,
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade300)),
-                  child: Text(widget.incidenciaActual!.historialCambios, style: const TextStyle(fontSize: 13, color: Colors.blueGrey)),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radius),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Text(widget.incidenciaActual!.historialCambios, style: AppText.mono(size: 12.5, color: AppColors.inkMuted)),
                 ),
               ],
 
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: colorPrimarioOscuro, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-                  onPressed: _isLoading ? null : _guardar,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(esEdicion ? 'Actualizar Registro' : 'Guardar Registro', style: const TextStyle(color: Colors.white, fontSize: 18)),
-                ),
-              )
+              const SizedBox(height: 28),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _guardar,
+                child: _isLoading
+                    ? SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.onPrimary))
+                    : Text(esEdicion ? 'Actualizar registro' : 'Guardar registro'),
+              ),
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
   InputDecoration _buildDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: colorPrimario),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colorPrimario, width: 2)),
+      prefixIcon: Icon(icon, size: 21, color: AppColors.inkMuted),
     );
   }
 }

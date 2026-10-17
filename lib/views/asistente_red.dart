@@ -1,3 +1,5 @@
+import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/widgets/responsive.dart';
 import 'package:bitacora_red/widgets/motion.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
 import 'package:bitacora_red/controllers/network_utils.dart';
@@ -20,8 +22,8 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
   int segments = 4;
 
   final List<Color> availableColors = [
-    const Color(0xFF1D4ED8), const Color(0xFF047857), const Color(0xFFB91C1C),
-    const Color(0xFFB45309), const Color(0xFF4338CA), const Color(0xFFBE185D)
+    AppColors.palette4, AppColors.palette3, const Color(0xFF0F766E),
+    const Color(0xFFB45309), const Color(0xFFB91C1C), const Color(0xFF475569)
   ];
   late Color selectedColor;
 
@@ -61,7 +63,8 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
           id: DateTime.now().millisecondsSinceEpoch.toString() + i.toString(),
           networkId: netId, name: 'Segmento ${i + 1}',
           baseIp: NetworkUtils.longToIp(currentIpLong), size: segmentSize,
-        );
+          vlanNumber: (i + 1) * 10,
+        )..fillDerivedFields();
         await dbHelper.insertSubnet(newSubnet);
         currentIpLong += segmentSize;
       }
@@ -72,14 +75,14 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nueva Red')),
-      body: Form(
+      appBar: AppBar(title: const Text('Nuevo edificio')),
+      body: Centered(child: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(24.0),
           children: [
             TextFormField(
-              decoration: const InputDecoration(labelText: 'Nombre de la Red (Ej. Edificio A)'),
+              decoration: const InputDecoration(labelText: 'Nombre del edificio (Ej. Edificio A)'),
               validator: (val) => val!.isEmpty ? 'Requerido' : null,
               onSaved: (val) => networkName = val!,
             ),
@@ -137,11 +140,11 @@ class _NetworkWizardScreenState extends State<NetworkWizardScreen> {
             ElevatedButton(
               onPressed: _generateSubnets,
               style: ElevatedButton.styleFrom(backgroundColor: selectedColor),
-              child: const Text('Crear Red', style: TextStyle(color: Colors.white)),
+              child: const Text('Crear edificio', style: TextStyle(color: Colors.white)),
             )
           ],
         ),
-      ),
+      )),
     );
   }
 }

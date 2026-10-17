@@ -1,35 +1,93 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app_theme.dart';
+import 'controllers/app_session.dart';
+import 'controllers/auth_controller.dart';
 import 'views/pantalla_principal.dart';
 import 'views/login_screen.dart';
+import 'views/restablecer_password_screen.dart';
+import 'widgets/idle_watcher.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+  await initializeDateFormatting('es');
 
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
-  runApp(const BitacoraRedApp()); //
+  runApp(const BitacoraRedApp());
 }
 
-class BitacoraRedApp extends StatelessWidget {
+class BitacoraRedApp extends StatefulWidget {
   const BitacoraRedApp({super.key});
 
   @override
+  State<BitacoraRedApp> createState() => _BitacoraRedAppState();
+}
+
+class _BitacoraRedAppState extends State<BitacoraRedApp> {
+  late final Future<bool> _restore;
+  StreamSubscription<AuthState>? _authSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _restore = AuthController().restoreSession().then((p) => p != null);
+
+    // Enlace de "recuperar contraseña" recibido por correo.
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.passwordRecovery) {
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (_) => const RestablecerPasswordScreen()),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Bitácora de Red',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      // Validación de sesión para mostrar Login o Pantalla Principal
-      home: Supabase.instance.client.auth.currentUser != null
-          ? const MainTabScreen()
-          : const LoginScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: AppSession.themeMode,
+      builder: (context, mode, _) {
+        AppColors.isDark = mode == ThemeMode.dark;
+        return MaterialApp(
+          title: 'Bitácora de Red',
+          debugShowCheckedModeBanner: false,
+          navigatorKey: navigatorKey,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: mode,
+          locale: const Locale('es'),
+          supportedLocales: const [Locale('es'), Locale('en')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          builder: (context, child) => IdleWatcher(navigatorKey: navigatorKey, child: child ?? const SizedBox()),
+          home: FutureBuilder<bool>(
+            future: _restore,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+              return snapshot.data == true ? const MainTabScreen() : const LoginScreen();
+            },
+          ),
+        );
+      },
     );
   }
 }

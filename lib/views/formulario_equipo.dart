@@ -1,4 +1,5 @@
 import 'package:bitacora_red/controllers/database_helper.dart';
+import 'package:bitacora_red/widgets/responsive.dart';
 import 'package:bitacora_red/controllers/mac_address_formatter.dart';
 import 'package:bitacora_red/models/device.dart';
 import 'package:bitacora_red/models/subnet.dart';
@@ -47,6 +48,15 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
         return;
       }
 
+      if (selectedSubnet.isIpExcluded(ip)) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('La IP $ip está en el rango excluido de ${selectedSubnet.name} (${selectedSubnet.excluded})'),
+          backgroundColor: Colors.red.shade800,
+          behavior: SnackBarBehavior.floating,
+        ));
+        return;
+      }
+
       final existingDevices = await dbHelper.getDevices();
       bool isMacTaken = existingDevices.any((d) =>
       d.mac.toLowerCase() == mac.toLowerCase() &&
@@ -82,17 +92,17 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.device == null ? 'Nuevo Equipo' : 'Editar Equipo')),
-      body: Form(
+      body: Centered(child: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
             DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Segmento de Red'),
+              decoration: const InputDecoration(labelText: 'Segmento / VLAN'),
               initialValue: selectedSubnetId,
               icon: const Icon(Icons.arrow_drop_down),
               items: widget.subnets.map((s) {
-                return DropdownMenuItem(value: s.id, child: Text('${s.name} (${s.firstUsable} - ${s.lastUsable})'));
+                return DropdownMenuItem(value: s.id, child: Text('${s.label} (${s.firstUsable} - ${s.lastUsable})'));
               }).toList(),
               onChanged: (val) => setState(() => selectedSubnetId = val),
               validator: (val) => val == null ? 'Requerido' : null,
@@ -142,7 +152,7 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
             ElevatedButton(onPressed: saveDevice, child: const Text('Guardar Configuración'))
           ],
         ),
-      ),
+      )),
     );
   }
 }

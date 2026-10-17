@@ -1,12 +1,14 @@
 import 'package:bitacora_red/app_theme.dart';
+import 'package:bitacora_red/widgets/responsive.dart';
+import 'package:bitacora_red/controllers/app_session.dart';
 import 'package:bitacora_red/widgets/motion.dart';
 import 'package:bitacora_red/controllers/database_helper.dart';
 import 'package:bitacora_red/models/device.dart';
 import 'package:bitacora_red/models/network_group.dart';
 import 'package:bitacora_red/models/subnet.dart';
 import 'package:bitacora_red/views/formulario_equipo.dart';
+import 'package:bitacora_red/widgets/estado_widgets.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 class DevicesScreen extends StatefulWidget {
   const DevicesScreen({super.key});
@@ -41,6 +43,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
           d.location.toLowerCase().contains(query);
     }).toList();
 
+    final admin = AppSession.isAdmin;
     return Scaffold(
       appBar: AppBar(title: const Text('Inventario de equipos')),
       body: Column(
@@ -56,7 +59,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
+            child: ResponsiveList(
               padding: const EdgeInsets.only(bottom: 96),
               itemCount: networks.length,
               itemBuilder: (context, netIndex) {
@@ -75,9 +78,9 @@ class _DevicesScreenState extends State<DevicesScreen> {
                     shape: const Border(),
                     collapsedShape: const Border(),
                     initiallyExpanded: searchQuery.isNotEmpty,
-                    leading: Icon(Icons.hub, color: accessibleColor(Color(net.colorValue))),
+                    leading: Icon(Icons.hub, color: AppColors.tint(accessibleColor(Color(net.colorValue)))),
                     title: Text(net.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    subtitle: Text(net.baseIp, style: const TextStyle(color: AppColors.inkMuted)),
+                    subtitle: Text(net.baseIp, style: TextStyle(color: AppColors.inkMuted)),
                     children: netSubnets.map((subnet) {
 
                       final subDevices = filteredDevices.where((d) => d.subnetId == subnet.id).toList();
@@ -87,25 +90,33 @@ class _DevicesScreenState extends State<DevicesScreen> {
                         padding: const EdgeInsets.only(left: 16.0),
                         child: ExpansionTile(
                           initiallyExpanded: searchQuery.isNotEmpty,
-                          leading: const Icon(Icons.router, color: AppColors.inkMuted),
+                          leading: Icon(Icons.router, color: AppColors.inkMuted),
                           title: Text(subnet.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                           children: subDevices.map((device) {
                             return ListTile(
                               contentPadding: const EdgeInsets.only(left: 40, right: 16),
-                              leading: const Icon(Icons.computer, color: AppColors.primary),
+                              leading: Icon(Icons.computer, color: AppColors.primary),
                               title: Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: Text('IP: ${device.ip} | MAC: ${device.mac}', style: const TextStyle(color: AppColors.inkMuted)),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete, color: AppColors.error, size: 22),
-                                onPressed: () async {
-                                  await dbHelper.deleteDevice(device.id, device.name);
-                                  _loadData();
-                                },
-                              ),
-                              onTap: () async {
-                                await Navigator.push(context, MaterialPageRoute(builder: (context) => DeviceFormScreen(device: device, subnets: subnets)));
-                                _loadData();
-                              },
+                              subtitle: Text('IP: ${device.ip} | MAC: ${device.mac}', style: TextStyle(color: AppColors.inkMuted)),
+                              trailing: admin
+                                  ? IconButton(
+                                      icon: Icon(Icons.delete, color: AppColors.error, size: 22),
+                                      onPressed: () async {
+                                        final ok = await confirmar(context,
+                                            titulo: 'Eliminar equipo',
+                                            mensaje: 'Se eliminará "${device.name}" del inventario. ¿Continuar?');
+                                        if (!ok) return;
+                                        await dbHelper.deleteDevice(device.id, device.name);
+                                        _loadData();
+                                      },
+                                    )
+                                  : null,
+                              onTap: admin
+                                  ? () async {
+                                      await Navigator.push(context, MaterialPageRoute(builder: (context) => DeviceFormScreen(device: device, subnets: subnets)));
+                                      _loadData();
+                                    }
+                                  : null,
                             );
                           }).toList(),
                         ),
@@ -119,14 +130,16 @@ class _DevicesScreenState extends State<DevicesScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await Navigator.push(context, MaterialPageRoute(builder: (context) => DeviceFormScreen(subnets: subnets)));
-          _loadData();
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Agregar equipo'),
-      ),
+      floatingActionButton: admin
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                await Navigator.push(context, MaterialPageRoute(builder: (context) => DeviceFormScreen(subnets: subnets)));
+                _loadData();
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Agregar equipo'),
+            )
+          : null,
     );
   }
 }
