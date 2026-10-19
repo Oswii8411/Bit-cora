@@ -21,6 +21,7 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
   final _formKey = GlobalKey<FormState>();
   final _descripcionController = TextEditingController();
   final _accionController = TextEditingController();
+  final _solucionController = TextEditingController();
   final _nuevoDispositivoController = TextEditingController();
 
   String? _dispositivoSeleccionado;
@@ -42,6 +43,7 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
       _accionController.text = widget.incidenciaActual!.accionRealizada;
       _estadoSeleccionado = widget.incidenciaActual!.estado;
       _prioridadSeleccionada = widget.incidenciaActual!.prioridad;
+      _solucionController.text = widget.incidenciaActual!.solucion;
     }
   }
 
@@ -80,7 +82,12 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
 
       // Armamos el registro de qué técnico hizo qué en este momento
       String fechaActual = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
-      String accionRegistro = widget.incidenciaActual == null ? "Creó el reporte" : "Actualizó el estado a '$_estadoSeleccionado'";
+      final resolviendo = _estadoSeleccionado == 'Resuelto';
+      final yaResuelta = widget.incidenciaActual?.resuelta ?? false;
+      final solucion = _solucionController.text.trim();
+      String accionRegistro = widget.incidenciaActual == null
+          ? "Creó el reporte"
+          : (resolviendo ? 'Resolvió la incidencia. $solucion' : "Actualizó el estado a '$_estadoSeleccionado'");
       String nuevoLog = "[$fechaActual] $nombreResponsable: $accionRegistro.";
 
       String historialCompleto = widget.incidenciaActual?.historialCambios ?? '';
@@ -95,12 +102,21 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
         prioridad: _prioridadSeleccionada,
         responsable: nombreResponsable, // Se queda como el último en tocarlo
         historialCambios: historialCompleto,
+        puertoId: widget.incidenciaActual?.puertoId,
+        // Quién resolvió, cuándo y cómo: solo si queda resuelta (y se conserva si ya lo estaba).
+        solucion: resolviendo ? solucion : '',
+        resueltoPor: resolviendo ? (yaResuelta ? widget.incidenciaActual!.resueltoPor : nombreResponsable) : null,
+        resueltoEn: resolviendo ? (yaResuelta ? widget.incidenciaActual!.resueltoEn : DateTime.now()) : null,
       );
 
       if (widget.incidenciaActual == null) {
         await DatabaseHelper().insertIncidencia(incidenciaData);
       } else {
-        await DatabaseHelper().updateIncidencia(incidenciaData);
+        await DatabaseHelper().updateIncidencia(incidenciaData, clearResolution: yaResuelta && !resolviendo);
+      }
+      // Si se resolvió, su puerto ya no debe seguir marcado "Con incidencia".
+      if (resolviendo && incidenciaData.puertoId != null) {
+        await DatabaseHelper().releasePortIfIncident(incidenciaData.puertoId!);
       }
 
       if (mounted) {
@@ -128,9 +144,10 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
             children: [
               // Selector de Dispositivo
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: _dispositivoSeleccionado,
                 decoration: _buildDecoration('Dispositivo afectado', Icons.devices),
-                items: _opcionesEquipos.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                items: _opcionesEquipos.map((d) => DropdownMenuItem(value: d, child: Text(d, overflow: TextOverflow.ellipsis))).toList(),
                 onChanged: esEdicion ? null : (val) { // Si edita, no se puede cambiar el dispositivo
                   setState(() {
                     _dispositivoSeleccionado = val;
@@ -174,6 +191,15 @@ class _FormularioIncidenciaState extends State<FormularioIncidencia> {
                 decoration: _buildDecoration('Acción realizada o seguimiento', Icons.build),
                 validator: (v) => Validators.text(v, campo: 'La acción', min: 3, max: 500),
               ),
+              if (_estadoSeleccionado == 'Resuelto') ...[
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _solucionController,
+                  maxLines: 3,
+                  decoration: _buildDecoration('Solución: qué se hizo y cómo se resolvió', Icons.task_alt),
+                  validator: (v) => Validators.text(v, campo: 'La solución', min: 10, max: 500),
+                ),
+              ],
 
               // Historial de intervenciones visual (Solo en modo edición)
               if (esEdicion && widget.incidenciaActual!.historialCambios.isNotEmpty) ...[

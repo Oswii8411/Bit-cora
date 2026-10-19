@@ -15,6 +15,17 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+/// Marca todo el árbol de widgets para redibujarse una vez. Conserva el estado
+/// (textos escritos, scroll, pantallas abiertas); solo vuelve a ejecutar los `build`.
+void _rebuildEverything() {
+  void rebuild(Element element) {
+    element.markNeedsBuild();
+    element.visitChildren(rebuild);
+  }
+
+  WidgetsBinding.instance.rootElement?.visitChildren(rebuild);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
@@ -65,7 +76,14 @@ class _BitacoraRedAppState extends State<BitacoraRedApp> {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: AppSession.themeMode,
       builder: (context, mode, _) {
-        AppColors.isDark = mode == ThemeMode.dark;
+        final dark = mode == ThemeMode.dark;
+        if (AppColors.isDark != dark) {
+          AppColors.isDark = dark;
+          // Muchos widgets leen AppColors directamente y Flutter no sabe que deben
+          // redibujarse al cambiar el tema (la barra inferior, por ejemplo, se quedaba
+          // con los colores viejos hasta tocarla). Se fuerza un redibujado completo.
+          WidgetsBinding.instance.addPostFrameCallback((_) => _rebuildEverything());
+        }
         return MaterialApp(
           title: 'Bitácora de Red',
           debugShowCheckedModeBanner: false,

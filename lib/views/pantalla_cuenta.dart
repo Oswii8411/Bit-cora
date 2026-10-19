@@ -61,7 +61,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = AppSession.profile!;
+    // Al cerrar sesión el perfil se borra un instante antes de salir de esta pantalla;
+    // si se redibuja en ese momento no debe fallar.
+    final profile = AppSession.profile;
+    if (profile == null) return const SizedBox.shrink();
+    final p = profile;
     return Scaffold(
       appBar: AppBar(title: const Text('Perfil')),
       body: Centered(child: Form(
@@ -157,7 +161,11 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = AppSession.profile!;
+    // Al cerrar sesión el perfil se borra un instante antes de salir de esta pantalla;
+    // si se redibuja en ese momento no debe fallar.
+    final profile = AppSession.profile;
+    if (profile == null) return const SizedBox.shrink();
+    final p = profile;
     return Scaffold(
       appBar: AppBar(title: const Text('Seguridad')),
       body: Centered(child: ListView(
@@ -269,7 +277,8 @@ class _PreferenciasScreenState extends State<PreferenciasScreen> {
 
   Future<void> _save() async {
     try {
-      await db.updatePreferences(AppSession.profile!);
+      final current = AppSession.profile;
+      if (current != null) await db.updatePreferences(current);
     } catch (e) {
       if (mounted) showMsg(context, 'No se pudo guardar la preferencia: $e', error: true);
     }
@@ -277,7 +286,11 @@ class _PreferenciasScreenState extends State<PreferenciasScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = AppSession.profile!;
+    // Al cerrar sesión el perfil se borra un instante antes de salir de esta pantalla;
+    // si se redibuja en ese momento no debe fallar.
+    final profile = AppSession.profile;
+    if (profile == null) return const SizedBox.shrink();
+    final p = profile;
     return Scaffold(
       appBar: AppBar(title: const Text('Preferencias')),
       body: Centered(child: ListView(

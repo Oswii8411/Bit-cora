@@ -122,8 +122,35 @@ class _DeviceFormScreenState extends State<DeviceFormScreen> {
               decoration: const InputDecoration(labelText: 'Segmento / VLAN'),
               initialValue: selectedSubnetId,
               icon: const Icon(Icons.arrow_drop_down),
+              // El texto es largo: el campo debe ocupar todo el ancho y recortar lo que no quepa.
+              isExpanded: true,
+              itemHeight: 64,
+              // Ya elegido, solo se muestra el nombre (una línea).
+              selectedItemBuilder: (context) => widget.subnets
+                  .map((s) => Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(s.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ))
+                  .toList(),
+              // En la lista: nombre arriba y rango abajo, cada uno en su línea.
               items: widget.subnets.map((s) {
-                return DropdownMenuItem(value: s.id, child: Text('${s.label} (${s.firstUsable} - ${s.lastUsable})'));
+                return DropdownMenuItem(
+                  value: s.id,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${s.firstUsable} - ${s.lastUsable}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.mono(size: 12, color: AppColors.inkMuted),
+                      ),
+                    ],
+                  ),
+                );
               }).toList(),
               onChanged: (val) => setState(() => selectedSubnetId = val),
               validator: (val) => val == null ? 'Requerido' : null,

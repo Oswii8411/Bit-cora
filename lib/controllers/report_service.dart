@@ -107,7 +107,7 @@ class ReportService {
           'Resueltas: ${list.where((i) => i.estado == 'Resuelto').length}'),
       pw.SizedBox(height: 10),
       _table(
-        ['Fecha', 'Equipo', 'Prioridad', 'Estado', 'Falla', 'Accion', 'Responsable'],
+        ['Fecha', 'Equipo', 'Prioridad', 'Estado', 'Falla', 'Solucion / accion', 'Reporto', 'Resolvio'],
         list
             .map((i) => [
                   i.createdAt != null ? f.format(i.createdAt!) : '',
@@ -115,8 +115,11 @@ class ReportService {
                   i.prioridad,
                   i.estado,
                   i.descripcion,
-                  i.accionRealizada,
+                  i.solucion.isNotEmpty ? i.solucion : i.accionRealizada,
                   i.responsable,
+                  i.resuelta
+                      ? '${i.resueltoPor ?? '-'}${i.resueltoEn != null ? ' (${f.format(i.resueltoEn!)})' : ''}'
+                      : '-',
                 ])
             .toList(),
       ),

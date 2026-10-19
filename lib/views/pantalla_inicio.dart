@@ -27,6 +27,7 @@ class _InicioScreenState extends State<InicioScreen> {
   @override
   void initState() {
     super.initState();
+    DatabaseHelper().changes.addListener(_onDataChanged);
     _load();
   }
 
@@ -39,20 +40,37 @@ class _InicioScreenState extends State<InicioScreen> {
         error = null;
       });
     } catch (e) {
-      if (mounted) setState(() => error = 'No se pudo cargar el resumen.\n$e');
+      if (mounted) setState(() => error = '$e');
     }
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
+  }
+
+  @override
+  void dispose() {
+    DatabaseHelper().changes.removeListener(_onDataChanged);
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = AppSession.profile!;
+    // Al cerrar sesión el perfil se borra un instante antes de salir de esta pantalla;
+    // si se redibuja en ese momento no debe fallar.
+    final profile = AppSession.profile;
+    if (profile == null) return const SizedBox.shrink();
+    final p = profile;
     final s = stats;
     final fecha = toBeginningOfSentenceCase(DateFormat("EEEE d 'de' MMMM", 'es').format(DateTime.now()));
 
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _load,
+          onRefresh: () {
+            DatabaseHelper().invalidateCache();
+            return _load();
+          },
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
             children: [
@@ -80,7 +98,29 @@ class _InicioScreenState extends State<InicioScreen> {
               if (error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 40),
-                  child: EmptyState(icon: Icons.cloud_off, title: 'Sin conexión', hint: error),
+                  child: Column(
+                    children: [
+                      const EmptyState(icon: Icons.cloud_off, title: 'No se pudo cargar el resumen', hint: 'Revisa tu conexión e intenta de nuevo.'),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+                        child: SelectableText(
+                          error ?? '',
+                          style: AppText.mono(size: 11.5, color: AppColors.inkMuted),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          DatabaseHelper().invalidateCache();
+                          setState(() => error = null);
+                          _load();
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Reintentar'),
+                        style: OutlinedButton.styleFrom(minimumSize: const Size(160, 44)),
+                      ),
+                    ],
+                  ),
                 )
               else if (s == null)
                 const Padding(padding: EdgeInsets.only(top: 80), child: Center(child: CircularProgressIndicator()))
@@ -125,6 +165,10 @@ class _InicioScreenState extends State<InicioScreen> {
     ];
 
     final left = <Widget>[
+      if (s.failed.isNotEmpty) _FailedBanner(failed: s.failed, onRetry: () {
+        DatabaseHelper().invalidateCache();
+        _load();
+      }),
       const SectionLabel('Requiere atención'),
       _Panel(
         children: attention.isEmpty
@@ -208,6 +252,46 @@ class _ChartCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.radius + 2),
       ),
       child: child,
+    );
+  }
+}
+
+/// Aviso cuando alguna parte del resumen no se pudo cargar.
+class _FailedBanner extends StatelessWidget {
+  final List<String> failed;
+  final VoidCallback onRetry;
+  const _FailedBanner({required this.failed, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.14),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(AppTheme.radius),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: AppColors.accentText),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text('Parte del resumen no se pudo cargar', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              TextButton(onPressed: onRetry, child: const Text('Reintentar')),
+            ],
+          ),
+          for (final f in failed)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, right: 6),
+              child: SelectableText(f, style: AppText.mono(size: 11, color: AppColors.inkMuted)),
+            ),
+        ],
+      ),
     );
   }
 }

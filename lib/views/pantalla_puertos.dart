@@ -9,6 +9,7 @@ import 'package:bitacora_red/models/net_switch.dart';
 import 'package:bitacora_red/models/network_group.dart';
 import 'package:bitacora_red/models/subnet.dart';
 import 'package:bitacora_red/widgets/estado_widgets.dart';
+import 'package:bitacora_red/widgets/incidencia_dialogs.dart';
 import 'package:flutter/material.dart';
 
 /// Puertos de un switch.
@@ -139,7 +140,9 @@ class _PortsScreenState extends State<PortsScreen> {
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: isAdmin ? () => _showForm(existing: port) : () => _onMenu('estado', port),
+          onTap: isAdmin
+              ? () => _showForm(existing: port)
+              : (alerta ? () => _resolveIncident(port) : () => _onMenu('estado', port)),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 9, 2, 9),
             child: Row(
@@ -171,10 +174,24 @@ class _PortsScreenState extends State<PortsScreen> {
                     ],
                   ),
                 ),
+                if (alerta)
+                  TextButton(
+                    onPressed: () => _resolveIncident(port),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.accentText,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 36),
+                    ),
+                    child: const Text('Resolver'),
+                  ),
                 PopupMenuButton<String>(
                   icon: Icon(Icons.more_vert, color: AppColors.inkMuted),
                   onSelected: (value) => _onMenu(value, port),
                   itemBuilder: (context) => [
+                    if (alerta)
+                      _item('resolver', Icons.check_circle_outline, 'Resolver incidencia')
+                    else
+                      _item('reportar', Icons.report_problem_outlined, 'Reportar incidencia'),
                     if (isAdmin) _item('edit', Icons.edit_outlined, 'Editar información'),
                     _item('estado', Icons.flag_outlined, 'Cambiar estado'),
                     if (isAdmin) _item('reset', Icons.restart_alt, 'Restablecer'),
@@ -214,6 +231,16 @@ class _PortsScreenState extends State<PortsScreen> {
           actual: port.estado,
         );
         if (nuevo == null || nuevo == port.estado) return;
+        // Entrar o salir de "Con incidencia" pasa por reportar o resolver, para que
+        // quede registrado qué falló y cómo se arregló.
+        if (nuevo == 'Con incidencia') {
+          await _reportIncident(port);
+          return;
+        }
+        if (port.estado == 'Con incidencia') {
+          await _resolveIncident(port, estadoInicial: nuevo);
+          return;
+        }
         final anterior = port.estado;
         port.estado = nuevo;
         await _run(
@@ -224,6 +251,10 @@ class _PortsScreenState extends State<PortsScreen> {
           ),
           'Estado actualizado',
         );
+      case 'resolver':
+        await _resolveIncident(port);
+      case 'reportar':
+        await _reportIncident(port);
       case 'reset':
         final ok = await confirmar(
           context,
@@ -242,6 +273,42 @@ class _PortsScreenState extends State<PortsScreen> {
         );
         if (ok) await _run(() => dbHelper.deletePort(port, sw.name), 'Puerto eliminado');
     }
+  }
+
+  Future<void> _reportIncident(NetPort port, {String inicial = ''}) async {
+    final res = await showReportIncidentDialog(
+      context,
+      titulo: '${sw.name} · Puerto ${port.number}',
+      inicial: inicial,
+    );
+    if (res == null) return;
+    await _run(
+      () => dbHelper.reportPortIncident(
+        port: port,
+        switchName: sw.name,
+        descripcion: res.descripcion,
+        prioridad: res.prioridad,
+      ),
+      'Incidencia reportada',
+    );
+  }
+
+  Future<void> _resolveIncident(NetPort port, {String estadoInicial = 'Disponible'}) async {
+    final res = await showResolveIncidentDialog(
+      context,
+      titulo: '${sw.name} · Puerto ${port.number}',
+      estadoInicial: estadoInicial,
+    );
+    if (res == null) return;
+    await _run(
+      () => dbHelper.resolvePortIncident(
+        port: port,
+        switchName: sw.name,
+        solucion: res.solucion,
+        estadoFinal: res.estadoFinal,
+      ),
+      'Incidencia resuelta',
+    );
   }
 
   /// Formulario de puerto: número, segmentación de red, VLAN, departamento,
@@ -352,6 +419,7 @@ class _PortsScreenState extends State<PortsScreen> {
 
     if (saved != true) return;
     final n = int.parse(number.text);
+    final conIncidencia = estado == 'Con incidencia';
     if (existing == null) {
       final port = NetPort(
         id: '${sw.id}p$n-${DateTime.now().millisecondsSinceEpoch}',
@@ -361,18 +429,27 @@ class _PortsScreenState extends State<PortsScreen> {
         vlan: vlanText.text.trim(),
         departamento: departamento.text.trim(),
         observaciones: observaciones.text.trim(),
-        estado: estado,
+        // Un puerto nuevo "con incidencia" se crea disponible y luego se reporta.
+        estado: conIncidencia ? 'Disponible' : estado,
       );
       await _run(() => dbHelper.insertPort(port, sw.name), 'Puerto $n agregado');
+      if (conIncidencia && mounted) await _reportIncident(port, inicial: observaciones.text.trim());
     } else {
+      final estabaConIncidencia = existing.estado == 'Con incidencia';
       existing
         ..number = n
         ..subnetId = subnetId
         ..vlan = vlanText.text.trim()
         ..departamento = departamento.text.trim()
         ..observaciones = observaciones.text.trim()
-        ..estado = estado;
+        // Entrar o salir de "Con incidencia" se hace después, con su propio diálogo.
+        ..estado = (conIncidencia != estabaConIncidencia) ? existing.estado : estado;
       await _run(() => dbHelper.updatePort(existing, sw.name), 'Puerto actualizado');
+      if (!estabaConIncidencia && conIncidencia && mounted) {
+        await _reportIncident(existing, inicial: observaciones.text.trim());
+      } else if (estabaConIncidencia && !conIncidencia && mounted) {
+        await _resolveIncident(existing, estadoInicial: estado);
+      }
     }
   }
 }

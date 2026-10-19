@@ -27,6 +27,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
   @override
   void initState() {
     super.initState();
+    DatabaseHelper().changes.addListener(_onDataChanged);
     _load();
   }
 
@@ -51,6 +52,16 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     _load();
   }
 
+  void _onDataChanged() {
+    if (mounted) _load();
+  }
+
+  @override
+  void dispose() {
+    DatabaseHelper().changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final activos = users.where((u) => u.isActive).length;
@@ -67,7 +78,10 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: _load,
+              onRefresh: () {
+            DatabaseHelper().invalidateCache();
+            return _load();
+          },
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [

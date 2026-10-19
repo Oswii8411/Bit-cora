@@ -42,18 +42,25 @@ class _BitacoraScreenState extends State<BitacoraScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
+    DatabaseHelper().changes.addListener(_onDataChanged);
     _tabs = TabController(length: 2, vsync: this)..addListener(() => setState(() {}));
     _load();
   }
 
+  void _onDataChanged() {
+    if (mounted) _load();
+  }
+
   @override
   void dispose() {
+    DatabaseHelper().changes.removeListener(_onDataChanged);
     _tabs.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
-    setState(() => loading = true);
+    // Solo la primera carga muestra el círculo; las demás actualizan en silencio.
+    if (logs.isEmpty && incidencias.isEmpty) setState(() => loading = true);
     try {
       final l = await db.getHistoryLogs(userId: isAdmin ? null : AppSession.profile?.id);
       final i = await db.getIncidencias();
@@ -91,7 +98,14 @@ class _BitacoraScreenState extends State<BitacoraScreen> with SingleTickerProvid
       appBar: AppBar(
         title: const Text('Bitácora'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), tooltip: 'Actualizar', onPressed: _load),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Actualizar',
+            onPressed: () {
+              DatabaseHelper().invalidateCache();
+              _load();
+            },
+          ),
         ],
         bottom: TabBar(
           controller: _tabs,
@@ -109,6 +123,7 @@ class _BitacoraScreenState extends State<BitacoraScreen> with SingleTickerProvid
             ),
       floatingActionButton: _tabs.index == 1
           ? FloatingActionButton.extended(
+              heroTag: null,
               icon: const Icon(Icons.add),
               label: const Text('Reportar'),
               onPressed: () async {
@@ -183,7 +198,10 @@ class _BitacoraScreenState extends State<BitacoraScreen> with SingleTickerProvid
           child: list.isEmpty
               ? const EmptyState(icon: Icons.menu_book_outlined, title: 'No hay movimientos con esos filtros')
               : RefreshIndicator(
-                  onRefresh: _load,
+                  onRefresh: () {
+            DatabaseHelper().invalidateCache();
+            return _load();
+          },
                   child: ResponsiveList(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                     itemCount: list.length,
@@ -384,6 +402,43 @@ class _BitacoraScreenState extends State<BitacoraScreen> with SingleTickerProvid
   }
 
   // ------------------------------------------------------------------ Incidencias
+  /// Quién resolvió la incidencia, cuándo y cómo.
+  Widget _resolvedBlock(Incidencia item) {
+    final ok = AppColors.tint(const Color(0xFF15803D));
+    final quien = item.resueltoPor ?? item.responsable;
+    final cuando = item.resueltoEn != null ? DateFormat('dd/MM/yyyy HH:mm').format(item.resueltoEn!) : '';
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: ok.withValues(alpha: 0.10),
+        border: Border.all(color: ok.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(AppTheme.radius),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.check_circle, size: 18, color: ok),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Resuelta por $quien', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              ),
+            ],
+          ),
+          if (cuando.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 26, top: 2),
+              child: Text(cuando, style: AppText.mono(size: 12, color: AppColors.inkMuted)),
+            ),
+          const SizedBox(height: 8),
+          Text(item.solucion, style: const TextStyle(fontSize: 14.5)),
+        ],
+      ),
+    );
+  }
+
   Widget _incidencias() {
     if (incidencias.isEmpty) {
       return const EmptyState(
@@ -394,7 +449,10 @@ class _BitacoraScreenState extends State<BitacoraScreen> with SingleTickerProvid
     }
 
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: () {
+            DatabaseHelper().invalidateCache();
+            return _load();
+          },
       child: ResponsiveList(
         padding: const EdgeInsets.all(16).copyWith(bottom: 90),
         itemCount: incidencias.length,
@@ -465,7 +523,10 @@ class _BitacoraScreenState extends State<BitacoraScreen> with SingleTickerProvid
                       ),
                       const SizedBox(height: 10),
                       Text('Falla: ${item.descripcion}', style: const TextStyle(fontSize: 15)),
-                      Text('Acción: ${item.accionRealizada}', style: TextStyle(fontSize: 15, color: AppColors.inkMuted)),
+                      if (item.resuelta && item.solucion.isNotEmpty)
+                        _resolvedBlock(item)
+                      else
+                        Text('Acción: ${item.accionRealizada}', style: TextStyle(fontSize: 15, color: AppColors.inkMuted)),
                       const Divider(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,

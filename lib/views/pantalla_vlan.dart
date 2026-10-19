@@ -45,6 +45,7 @@ class _VlansTabState extends State<VlansTab> {
   @override
   void initState() {
     super.initState();
+    DatabaseHelper().changes.addListener(_onDataChanged);
     _load();
   }
 
@@ -97,6 +98,16 @@ class _VlansTabState extends State<VlansTab> {
     if (changed == true) _load();
   }
 
+  void _onDataChanged() {
+    if (mounted) _load();
+  }
+
+  @override
+  void dispose() {
+    DatabaseHelper().changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -111,7 +122,10 @@ class _VlansTabState extends State<VlansTab> {
           )
         else
           RefreshIndicator(
-            onRefresh: _load,
+            onRefresh: () {
+            DatabaseHelper().invalidateCache();
+            return _load();
+          },
             child: ResponsiveList(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
               itemCount: vlans.length,
@@ -410,9 +424,10 @@ class _VlanFormScreenState extends State<VlanFormScreen> {
           children: [
             if (widget.fixedNetwork == null && !editing) ...[
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: networkId,
                 decoration: const InputDecoration(labelText: 'Edificio'),
-                items: widget.networks.map((n) => DropdownMenuItem(value: n.id, child: Text(n.name))).toList(),
+                items: widget.networks.map((n) => DropdownMenuItem(value: n.id, child: Text(n.name, overflow: TextOverflow.ellipsis))).toList(),
                 onChanged: (v) => setState(() => networkId = v),
                 validator: (v) => v == null ? 'Requerido' : null,
               ),

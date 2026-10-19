@@ -24,6 +24,7 @@ class _MasScreenState extends State<MasScreen> {
   @override
   void initState() {
     super.initState();
+    DatabaseHelper().changes.addListener(_onDataChanged);
     if (AppSession.isAdmin) _loadPending();
   }
 
@@ -36,9 +37,23 @@ class _MasScreenState extends State<MasScreen> {
     }
   }
 
+  void _onDataChanged() {
+    if (mounted) _loadPending();
+  }
+
+  @override
+  void dispose() {
+    DatabaseHelper().changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final p = AppSession.profile!;
+    // Al cerrar sesión el perfil se borra un instante antes de salir de esta pantalla;
+    // si se redibuja en ese momento no debe fallar.
+    final profile = AppSession.profile;
+    if (profile == null) return const SizedBox.shrink();
+    final p = profile;
     return Scaffold(
       appBar: AppBar(title: const Text('Más')),
       body: Centered(maxWidth: 720, child: ListView(

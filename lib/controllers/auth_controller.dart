@@ -38,6 +38,7 @@ class AuthController {
     }
 
     AppSession.apply(profile);
+    _db.invalidateCache();
     await _db.logEvent('INICIO', 'SESION', 'Inició sesión');
     return profile;
   }
@@ -48,7 +49,8 @@ class AuthController {
     final user = _auth.currentUser;
     if (user == null) return null;
     try {
-      final profile = await _db.getProfile(user.id);
+      // Con tiempo máximo: sin conexión la app debe llegar al login, no quedarse cargando.
+      final profile = await _db.getProfile(user.id).timeout(const Duration(seconds: 15));
       if (profile == null || !profile.isActive) {
         await _auth.signOut();
         return null;
@@ -95,6 +97,7 @@ class AuthController {
     }
     await _auth.signOut();
     AppSession.clear();
+    _db.invalidateCache();
   }
 
   Future<void> sendPasswordRecovery(String email) => _auth.resetPasswordForEmail(email);

@@ -40,6 +40,7 @@ class _BuildingsScreenState extends State<BuildingsScreen> {
   @override
   void initState() {
     super.initState();
+    DatabaseHelper().changes.addListener(_onDataChanged);
     _loadData();
   }
 
@@ -74,6 +75,16 @@ class _BuildingsScreenState extends State<BuildingsScreen> {
     _loadData();
   }
 
+  void _onDataChanged() {
+    if (mounted) _loadData();
+  }
+
+  @override
+  void dispose() {
+    DatabaseHelper().changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,7 +106,10 @@ class _BuildingsScreenState extends State<BuildingsScreen> {
                   hint: isAdmin ? 'Toca "Agregar edificio" para crear el primero.' : 'El administrador aún no registra edificios.',
                 )
               : RefreshIndicator(
-                  onRefresh: _loadData,
+                  onRefresh: () {
+            DatabaseHelper().invalidateCache();
+            return _loadData();
+          },
                   child: ResponsiveList(
                     padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
                     itemCount: networks.length,
@@ -123,6 +137,7 @@ class _BuildingsScreenState extends State<BuildingsScreen> {
                 ),
       floatingActionButton: isAdmin
           ? FloatingActionButton.extended(
+              heroTag: null,
               onPressed: () async {
                 await Navigator.push(
                   context,

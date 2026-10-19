@@ -1,5 +1,6 @@
 import 'package:bitacora_red/app_theme.dart';
 import 'package:bitacora_red/controllers/app_session.dart';
+import 'package:bitacora_red/controllers/database_helper.dart';
 import 'package:bitacora_red/views/pantalla_bitacora.dart';
 import 'package:bitacora_red/views/pantalla_edificios.dart';
 import 'package:bitacora_red/views/pantalla_inicio.dart';
@@ -39,6 +40,14 @@ class _MainTabScreenState extends State<MainTabScreen> {
 
   int _currentIndex = 0;
   int _redTab = 0;
+  final Set<int> _visited = {0};
+
+  @override
+  void initState() {
+    super.initState();
+    // Calienta la caché para que las primeras pantallas abran al instante.
+    DatabaseHelper().prefetch();
+  }
 
   /// Navegación desde cualquier pantalla (por ejemplo, desde el Inicio).
   void _goTo(String key) {
@@ -69,9 +78,18 @@ class _MainTabScreenState extends State<MainTabScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final item = _items[_currentIndex];
-    // Se reconstruye al cambiar de pestaña para mostrar datos recientes.
-    final screen = KeyedSubtree(key: ValueKey('${item.key}$_redTab'), child: _screen(item.key));
+    // Las pantallas se crean la primera vez que se visitan y después se quedan
+    // vivas: al volver no recargan ni pierden el scroll, la búsqueda o los filtros.
+    _visited.add(_currentIndex);
+    final screen = IndexedStack(
+      index: _currentIndex,
+      children: [
+        for (var i = 0; i < _items.length; i++)
+          _visited.contains(i)
+              ? KeyedSubtree(key: ValueKey('${_items[i].key}${_items[i].key == 'red' ? _redTab : ''}'), child: _screen(_items[i].key))
+              : const SizedBox.shrink(),
+      ],
+    );
 
     if (isWide(context)) {
       // Navegador o tableta: menú lateral y contenido con ancho máximo.

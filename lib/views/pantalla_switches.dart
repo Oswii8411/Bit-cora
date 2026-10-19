@@ -48,6 +48,7 @@ class _SwitchesTabState extends State<SwitchesTab> {
   @override
   void initState() {
     super.initState();
+    DatabaseHelper().changes.addListener(_onDataChanged);
     _loadData();
   }
 
@@ -93,6 +94,16 @@ class _SwitchesTabState extends State<SwitchesTab> {
     return null;
   }
 
+  void _onDataChanged() {
+    if (mounted) _loadData();
+  }
+
+  @override
+  void dispose() {
+    DatabaseHelper().changes.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -107,7 +118,10 @@ class _SwitchesTabState extends State<SwitchesTab> {
           )
         else
           RefreshIndicator(
-            onRefresh: _loadData,
+            onRefresh: () {
+            DatabaseHelper().invalidateCache();
+            return _loadData();
+          },
             child: ResponsiveList(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
               itemCount: switches.length,
@@ -277,9 +291,10 @@ class _SwitchesTabState extends State<SwitchesTab> {
                 children: [
                   if (widget.network == null && existing == null) ...[
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: networkId,
                       decoration: const InputDecoration(labelText: 'Edificio'),
-                      items: networks.map((n) => DropdownMenuItem(value: n.id, child: Text(n.name))).toList(),
+                      items: networks.map((n) => DropdownMenuItem(value: n.id, child: Text(n.name, overflow: TextOverflow.ellipsis))).toList(),
                       onChanged: (v) => setLocal(() => networkId = v),
                       validator: (v) => v == null ? 'Requerido' : null,
                     ),
